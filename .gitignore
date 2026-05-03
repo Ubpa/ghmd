@@ -3,3 +3,4 @@ dist/
 vendor/
 *.vsix
 .DS_Store
+.vscode-test/
