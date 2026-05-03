@@ -14,18 +14,18 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": ["onLanguage:markdown"],
   "contributes": {
     "commands": [
       {
         "command": "ghmd.openPreview",
         "title": "GHMD: Open Preview",
-        "icon": "$(open-preview)"
+        "icon": "$(mark-github)"
       },
       {
         "command": "ghmd.openPreviewToSide",
         "title": "GHMD: Open Preview to the Side",
-        "icon": "$(open-preview)"
+        "icon": "$(mark-github)"
       }
     ],
     "menus": {
@@ -33,6 +33,7 @@
         {
           "when": "resourceLangId == markdown",
           "command": "ghmd.openPreviewToSide",
+          "alt": "ghmd.openPreview",
           "group": "navigation"
         }
       ],
@@ -49,9 +50,15 @@
     },
     "keybindings": [
       {
+        "command": "ghmd.openPreview",
+        "key": "shift+ctrl+v",
+        "mac": "shift+cmd+v",
+        "when": "resourceLangId == markdown"
+      },
+      {
         "command": "ghmd.openPreviewToSide",
-        "key": "ctrl+shift+v",
-        "mac": "cmd+shift+v",
+        "key": "ctrl+k v",
+        "mac": "cmd+k v",
         "when": "resourceLangId == markdown"
       }
     ]

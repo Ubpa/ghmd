@@ -1,18 +1,43 @@
 # ghmd — GitHub Markdown Preview
 
-Renders Markdown locally with full GitHub feature support. Works as a **standalone server** (browser) and a **VS Code extension**.
+**Pixel-perfect GitHub rendering, locally.** Works as a standalone server (browser) and a VS Code extension.
+
+![Version](https://img.shields.io/badge/version-0.1.0-blue) ![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen?logo=node.js) ![License](https://img.shields.io/badge/license-MIT-green) ![Size](https://img.shields.io/badge/vsix-1.5MB-blue)
+
+---
+
+## Why GHMD?
+
+| | GHMD | Built-in Preview | MPE |
+|---|:---:|:---:|:---:|
+| GitHub-accurate rendering | Yes | No | Approximate |
+| Alerts, footnotes, math, mermaid | All | None | All |
+| Install size | 1.5 MB | Built-in | ~50 MB |
+| Config required | Zero | Zero | Extensive |
+| Standalone server | Yes | No | No |
+
+---
 
 ## Features
 
-- GitHub Alerts (`[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`)
-- Mermaid diagrams (flowchart, sequence, gantt, class, state, ER, pie, git)
-- LaTeX math via KaTeX (inline `$...$` and block `$$...$$`)
-- `<details>` collapsible sections
-- Footnotes, task lists, diff highlighting
-- `<kbd>`, `<sub>/<sup>`, `<picture>` theme-aware images
-- Code syntax highlighting (highlight.js)
-- Light/dark theme toggle
-- Live reload on file change
+| Feature | Syntax |
+|---------|--------|
+| GitHub Alerts | `> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`, `> [!WARNING]`, `> [!CAUTION]` |
+| Mermaid diagrams | ` ```mermaid ` (flowchart, sequence, gantt, class, state, ER, pie, git) |
+| LaTeX math | `$...$` inline, `$$...$$` block |
+| Code highlighting | ` ```lang ` with highlight.js |
+| Diff highlighting | ` ```diff ` with `+`/`-` lines |
+| Collapsible sections | `<details>` / `<summary>` |
+| Footnotes | `[^label]` |
+| Task lists | `- [x]` / `- [ ]` |
+| Keyboard keys | `<kbd>Cmd</kbd>` |
+| Sub/superscript | `<sub>` / `<sup>` |
+| Theme-aware images | `<picture>` with `prefers-color-scheme` |
+| Light/dark toggle | Toolbar button, persisted |
+| Table of contents | Collapsible TOC panel |
+| Live reload | Auto-updates on file change |
+
+---
 
 ## Install
 
@@ -22,32 +47,28 @@ cd ghmd
 npm install
 ```
 
+---
+
 ## Usage
 
-### Standalone Server (Browser)
-
-```bash
-node serve.mjs <file.md> [port]
-```
-
-Examples:
+### Standalone Server
 
 ```bash
 node serve.mjs README.md              # http://localhost:6419
-node serve.mjs docs/guide.md 8080     # http://localhost:8080
+node serve.mjs docs/guide.md 8080     # custom port
 ```
 
-Features:
-- Auto-reloads in browser when the file changes
-- Theme toggle button in top-right corner (saved in localStorage)
-- KaTeX and Mermaid load from CDN (latest version)
+Auto-reloads in browser on file change. KaTeX and Mermaid load from CDN.
 
-#### Offline Mode
+<details>
+<summary>Offline mode</summary>
 
 ```bash
 node serve.mjs --init                  # one-time: downloads katex + mermaid
 node serve.mjs README.md              # now fully offline
 ```
+
+</details>
 
 ### VS Code Extension
 
@@ -58,25 +79,76 @@ npm run package                        # build + create .vsix
 code --install-extension ghmd-0.1.0.vsix
 ```
 
-#### Use
+#### Keybindings
 
-Open any `.md` file, then:
+| Shortcut | Action |
+|----------|--------|
+| <kbd>Cmd</kbd>+<kbd>K</kbd> <kbd>V</kbd> | Open preview to the side |
+| <kbd>Shift</kbd>+<kbd>Cmd</kbd>+<kbd>V</kbd> | Open preview (same tab) |
 
-- <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd> (Mac) / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd> (Win/Linux)
-- Or Command Palette → `GHMD: Open Preview to the Side`
+> [!TIP]
+> The preview automatically follows your active markdown editor — no need to reopen when switching files.
 
-The preview updates live as you edit. Theme toggle button in top-right corner.
+The extension replaces the built-in markdown preview button with the GitHub icon. Theme toggle and TOC panel are in the top-right corner.
+
+---
+
+## How It Works
+
+```mermaid
+flowchart LR
+    MD["Markdown file"] --> P[marked + plugins]
+    P --> H["highlight.js"]
+    H --> HTML["GitHub-styled HTML"]
+    HTML --> K["KaTeX (math)"]
+    HTML --> M["Mermaid (diagrams)"]
+    K --> R["Rendered preview"]
+    M --> R
+```
+
+Both entry points share the same pipeline:
+
+1. **marked** parses GFM with alert and footnote plugins
+2. **highlight.js** handles code syntax highlighting
+3. **github-markdown-css** provides GitHub's exact styling
+4. **KaTeX** renders math client-side
+5. **Mermaid** renders diagrams client-side
+
+> [!NOTE]
+> The standalone server loads KaTeX/Mermaid from CDN by default (or locally after `--init`). The VS Code extension bundles everything into a 1.5 MB `.vsix`.
+
+---
 
 ## Development
 
 ```bash
 npm install                            # install dependencies
-npm run build                          # bundle extension + copy vendor assets
+npm run build                          # bundle extension + vendor assets
 npm run dev                            # build with sourcemaps (F5 debugging)
 npm run package                        # build + create .vsix
+npm test                               # run VS Code e2e tests (headless)
 ```
 
-### Updating Dependencies
+<details>
+<summary>Project structure</summary>
+
+```
+ghmd/
+  serve.mjs             Standalone server (ESM, zero build step)
+  src/
+    extension.cjs       VS Code extension source (CJS, bundled by esbuild)
+    ui.css              Shared UI styles (SSOT for both entry points)
+    toc.js              Shared TOC logic (SSOT for both entry points)
+  scripts/vendor.mjs    Copies dist files from node_modules → vendor/
+  dist/                 Bundled extension output (gitignored)
+  vendor/               Runtime assets for extension (gitignored)
+  docs/                 Research and roadmap
+```
+
+</details>
+
+<details>
+<summary>Updating dependencies</summary>
 
 ```bash
 npm update                             # update node_modules
@@ -84,28 +156,4 @@ npm run build                          # rebuild vendor/ + dist/
 npm run package                        # create new .vsix
 ```
 
-## Project Structure
-
-```
-ghmd/
-  serve.mjs             Standalone server (single file, zero build step)
-  src/extension.cjs     VS Code extension source
-  scripts/vendor.mjs    Copies dist files from node_modules → vendor/
-  dist/                 Bundled extension output (generated, gitignored)
-  vendor/               Runtime assets for VS Code extension (generated, gitignored)
-    css/                github-markdown-css + highlight.js themes
-    katex/              katex.min.js, katex.min.css, fonts/
-    mermaid.min.js      Mermaid diagram renderer
-```
-
-## How It Works
-
-Both the server and extension use the same rendering pipeline:
-
-1. **marked** parses GFM with plugins for alerts and footnotes
-2. **highlight.js** does code syntax highlighting
-3. **github-markdown-css** provides GitHub's exact styling
-4. **KaTeX** renders LaTeX math client-side
-5. **Mermaid** renders diagrams client-side
-
-The standalone server loads KaTeX/Mermaid from CDN by default (or locally after `--init`). The VS Code extension bundles everything — marked/hljs are compiled into `dist/extension.js` via esbuild, and KaTeX/Mermaid dist files ship in `vendor/` (~1.5 MB compressed in .vsix).
+</details>

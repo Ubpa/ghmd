@@ -1,8 +1,12 @@
 // Shared TOC client-side logic (inlined into both server and VS Code extension)
 
 function buildToc() {
-  const hs = Array.from(document.querySelectorAll('.ghmd-wrapper h1,.ghmd-wrapper h2,.ghmd-wrapper h3,.ghmd-wrapper h4,.ghmd-wrapper h5,.ghmd-wrapper h6'));
+  let hs = Array.from(document.querySelectorAll('.ghmd-wrapper h1,.ghmd-wrapper h2,.ghmd-wrapper h3,.ghmd-wrapper h4,.ghmd-wrapper h5,.ghmd-wrapper h6'));
   const panel = document.getElementById('tocPanel');
+  if (!hs.length) { document.getElementById('tocBtn').style.display = 'none'; return; }
+  // Skip the lone h1 (document title) so h2+ starts at top indent level
+  const h1s = hs.filter(h => h.tagName === 'H1');
+  if (h1s.length === 1) hs = hs.filter(h => h.tagName !== 'H1');
   if (!hs.length) { document.getElementById('tocBtn').style.display = 'none'; return; }
   const items = hs.map(h => ({ level: parseInt(h.tagName[1]), id: h.id, text: h.textContent.trim(), children: [] }));
   const root = { level: 0, children: [] };

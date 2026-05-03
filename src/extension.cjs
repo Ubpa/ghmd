@@ -9,14 +9,35 @@ const fs = require('fs');
 const uiCss = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.css'), 'utf8');
 const tocJs  = fs.readFileSync(path.join(__dirname, '..', 'src', 'toc.js'), 'utf8');
 
-const panels = new Map();
-const panelThemes = new Map();
+let activePanel = null;
+let activeKey = null;
+let activeTheme = 'light';
+let changeDocSub = null;
 
 function activate(context) {
+  vscode.commands.executeCommand('setContext', 'hasCustomMarkdownPreview', true);
   context.subscriptions.push(
     vscode.commands.registerCommand('ghmd.openPreview', () => openPreview(context, false)),
     vscode.commands.registerCommand('ghmd.openPreviewToSide', () => openPreview(context, true)),
+    vscode.window.onDidChangeActiveTextEditor(editor => {
+      if (!activePanel || !editor || editor.document.languageId !== 'markdown') return;
+      followEditor(editor.document, context);
+    }),
   );
+}
+
+function followEditor(doc, context) {
+  const key = doc.uri.toString();
+  if (key === activeKey) return;
+  activeKey = key;
+  activePanel.title = `Preview: ${path.basename(doc.fileName)}`;
+  if (changeDocSub) changeDocSub.dispose();
+  changeDocSub = vscode.workspace.onDidChangeTextDocument(e => {
+    if (e.document.uri.toString() === activeKey) {
+      updatePreview(activePanel, e.document, context);
+    }
+  });
+  updatePreview(activePanel, doc, context);
 }
 
 function openPreview(context, toSide) {
@@ -27,10 +48,10 @@ function openPreview(context, toSide) {
   }
 
   const doc = editor.document;
-  const key = doc.uri.toString();
 
-  if (panels.has(key)) {
-    panels.get(key).reveal();
+  if (activePanel) {
+    activePanel.reveal();
+    followEditor(doc, context);
     return;
   }
 
@@ -38,7 +59,7 @@ function openPreview(context, toSide) {
     ? (editor.viewColumn || vscode.ViewColumn.One) + 1
     : editor.viewColumn || vscode.ViewColumn.One;
 
-  const panel = vscode.window.createWebviewPanel(
+  activePanel = vscode.window.createWebviewPanel(
     'ghmd.preview',
     `Preview: ${path.basename(doc.fileName)}`,
     { viewColumn: column, preserveFocus: true },
@@ -50,27 +71,28 @@ function openPreview(context, toSide) {
     },
   );
 
-  panels.set(key, panel);
+  activeKey = doc.uri.toString();
 
-  panel.webview.onDidReceiveMessage(msg => {
+  activePanel.webview.onDidReceiveMessage(msg => {
     if (msg.type === 'themeChanged') {
-      panelThemes.set(key, msg.theme);
-      updatePreview(panel, doc, context, key);
+      activeTheme = msg.theme;
+      const currentDoc = vscode.workspace.textDocuments.find(d => d.uri.toString() === activeKey);
+      if (currentDoc) updatePreview(activePanel, currentDoc, context);
     }
   });
 
-  updatePreview(panel, doc, context, key);
-
-  const changeDoc = vscode.workspace.onDidChangeTextDocument(e => {
-    if (e.document.uri.toString() === key) {
-      updatePreview(panel, e.document, context, key);
+  changeDocSub = vscode.workspace.onDidChangeTextDocument(e => {
+    if (e.document.uri.toString() === activeKey) {
+      updatePreview(activePanel, e.document, context);
     }
   });
 
-  panel.onDidDispose(() => {
-    panels.delete(key);
-    panelThemes.delete(key);
-    changeDoc.dispose();
+  updatePreview(activePanel, doc, context);
+
+  activePanel.onDidDispose(() => {
+    activePanel = null;
+    activeKey = null;
+    if (changeDocSub) { changeDocSub.dispose(); changeDocSub = null; }
   });
 }
 
@@ -118,11 +140,11 @@ function vendor(context, ...segments) {
   return fs.readFileSync(path.join(context.extensionPath, 'vendor', ...segments), 'utf8');
 }
 
-function updatePreview(panel, doc, context, key) {
+function updatePreview(panel, doc, context) {
   const marked = getMarked();
   const body = marked.parse(doc.getText());
 
-  const mode = panelThemes.get(key) || 'light';
+  const mode = activeTheme;
   const isDark = mode === 'dark';
 
   const ghCss   = vendor(context, 'css', isDark ? 'github-markdown-dark.css' : 'github-markdown-light.css');
@@ -239,8 +261,8 @@ function getNonce() {
 }
 
 function deactivate() {
-  panels.forEach(p => p.dispose());
-  panels.clear();
+  if (activePanel) { activePanel.dispose(); activePanel = null; }
+  if (changeDocSub) { changeDocSub.dispose(); changeDocSub = null; }
 }
 
 module.exports = { activate, deactivate };
