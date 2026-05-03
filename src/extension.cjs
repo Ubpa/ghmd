@@ -52,6 +52,7 @@ function openPreview(context, toSide) {
   panel.webview.onDidReceiveMessage(msg => {
     if (msg.type === 'themeChanged') {
       panelThemes.set(key, msg.theme);
+      updatePreview(panel, doc, context, key);
     }
   });
 
@@ -109,10 +110,9 @@ function updatePreview(panel, doc, context, key) {
   const marked = getMarked();
   const body = marked.parse(doc.getText());
 
-  const ghLightCss   = vendor(context, 'css', 'github-markdown-light.css');
-  const ghDarkCss    = vendor(context, 'css', 'github-markdown-dark.css');
-  const hljsLightCss = vendor(context, 'css', 'hljs-light.css');
-  const hljsDarkCss  = vendor(context, 'css', 'hljs-dark.css');
+  const isDark = (panelThemes.get(key) || 'light') === 'dark';
+  const ghCss   = vendor(context, 'css', isDark ? 'github-markdown-dark.css' : 'github-markdown-light.css');
+  const hljsCss = vendor(context, 'css', isDark ? 'hljs-dark.css' : 'hljs-light.css');
 
   const katexCssLocal        = vendor(context, 'katex', 'katex.min.css');
   const katexJsLocal         = vendor(context, 'katex', 'katex.min.js');
@@ -123,7 +123,7 @@ function updatePreview(panel, doc, context, key) {
     vscode.Uri.file(path.join(context.extensionPath, 'vendor', 'katex', 'fonts'))
   );
 
-  const mode = panelThemes.get(key) || 'light';
+  const mode = isDark ? 'dark' : 'light';
 
   const nonce = getNonce();
 
@@ -133,10 +133,8 @@ function updatePreview(panel, doc, context, key) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' https://cdn.jsdelivr.net; script-src 'nonce-${nonce}' https://cdn.jsdelivr.net; img-src ${panel.webview.cspSource} https: data:; font-src ${panel.webview.cspSource} https://cdn.jsdelivr.net;">
-<style id="gh-light">${ghLightCss}</style>
-<style id="gh-dark" disabled>${ghDarkCss}</style>
-<style id="hljs-light">${hljsLightCss}</style>
-<style id="hljs-dark" disabled>${hljsDarkCss}</style>
+<style>${ghCss}</style>
+<style>${hljsCss}</style>
 <style>
   html, body { margin: 0; padding: 0; }
   html[data-theme="light"] { background: #fff; color-scheme: light; }
@@ -245,10 +243,6 @@ ${body}
   const vscode = acquireVsCodeApi();
   function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
-    document.getElementById('gh-light').disabled = (theme !== 'light');
-    document.getElementById('gh-dark').disabled  = (theme !== 'dark');
-    document.getElementById('hljs-light').disabled = (theme !== 'light');
-    document.getElementById('hljs-dark').disabled  = (theme !== 'dark');
     document.querySelectorAll('picture source[media*="prefers-color-scheme"]').forEach(src => {
       const orig = src.getAttribute('data-media') || src.getAttribute('media');
       if (!src.getAttribute('data-media')) src.setAttribute('data-media', orig);
