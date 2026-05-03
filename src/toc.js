@@ -23,12 +23,12 @@ function buildToc() {
       const tid = 'tc' + (uid++);
       const link = n.id ? '<a class="h' + n.level + '" href="#' + n.id + '" title="' + n.text + '">' + n.text + '</a>' : '';
       const collapsed = hasKids && n.level >= 2;
-      const kidsHtml = hasKids ? '<div class="toc-children" id="' + tid + '"' + (collapsed ? ' style="display:none"' : '') + '>' + render(n.children, indent + 16) + '</div>' : '';
+      const kidsHtml = hasKids ? '<div class="toc-children" id="' + tid + '"' + (collapsed ? ' style="display:none"' : '') + '>' + render(n.children, indent + 8) + '</div>' : '';
       const arrowHtml = hasKids ? '<button class="toc-arrow" data-target="' + tid + '">' + (collapsed ? '▸' : '▾') + '</button>' : '<span class="toc-spacer"></span>';
       return '<div><div class="toc-row" style="padding-left:' + indent + 'px">' + arrowHtml + link + '</div>' + kidsHtml + '</div>';
     }).join('');
   }
-  panel.innerHTML = render(root.children, 4);
+  panel.innerHTML = render(root.children, 2);
   panel.querySelectorAll('.toc-arrow').forEach(btn => btn.addEventListener('click', e => {
     e.stopPropagation();
     const kids = document.getElementById(btn.dataset.target);

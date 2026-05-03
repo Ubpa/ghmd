@@ -34,7 +34,7 @@ html[data-theme="dark"]  .theme-toggle .icon-sun  { display: block; }
   width: 260px; max-height: calc(100vh - 80px);
   overflow-y: auto;
   background: rgba(246,248,250,0.3); border: 1px solid rgba(208,215,222,0.4); border-radius: 8px;
-  padding: 12px 0; font-size: 0.8em; line-height: 1.5;
+  padding: 12px 0; font-size: 14px; line-height: 1.5;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   backdrop-filter: blur(4px);
   display: none;

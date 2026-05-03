@@ -388,6 +388,8 @@ ${body}
     clearTimeout(zoomHideTimer);
     zoomHideTimer = setTimeout(() => zoomBar.classList.remove('visible'), 2000);
   }
+  zoomBar.addEventListener('mouseenter', () => { clearTimeout(zoomHideTimer); zoomBar.classList.add('visible'); });
+  zoomBar.addEventListener('mouseleave', () => { zoomHideTimer = setTimeout(() => zoomBar.classList.remove('visible'), 1000); });
 
   zoomSlider.value = _zoom;
   zoomLabel.textContent = _zoom + '%';
