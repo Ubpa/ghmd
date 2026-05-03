@@ -137,7 +137,8 @@ function updatePreview(panel, doc, context, key) {
 <style>${hljsCss}</style>
 <style>
   html, body { margin: 0; padding: 0; }
-  html[data-theme="light"] { background: #fff; color-scheme: only light; }
+  /* Match github-markdown-css body backgrounds so VS Code's dark body doesn't bleed through padding */
+  html[data-theme="light"] { background: #ffffff; color-scheme: only light; }
   html[data-theme="dark"]  { background: #0d1117; color-scheme: only dark; }
 
   /* VS Code's webview default CSS fills in properties github-markdown intentionally omits.
