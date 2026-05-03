@@ -9,6 +9,7 @@ import markedFootnote from 'marked-footnote';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { frontmatterExtension } = require('./src/frontmatter.cjs');
+const { sourceLines, applySourceLineWrappers } = require('./src/source-lines.cjs');
 import { markedHighlight } from 'marked-highlight';
 import { markedEmoji } from 'marked-emoji';
 import markedLinkifyIt from 'marked-linkify-it';
@@ -88,6 +89,7 @@ function escHtml(s) {
 // ── Shared UI (single source of truth) ──
 const uiCss  = fs.readFileSync(new URL('./src/ui.css', import.meta.url).pathname, 'utf8');
 const tocJs  = fs.readFileSync(new URL('./src/toc.js', import.meta.url).pathname, 'utf8');
+const scrollSyncJs = fs.readFileSync(new URL('./src/scroll-sync.js', import.meta.url).pathname, 'utf8');
 
 // ── CSS (always local — installed as core deps) ──
 const cssDir = path.dirname(new URL(import.meta.resolve('github-markdown-css')).pathname);
@@ -132,11 +134,17 @@ function mermaidBlock() {
 let lastMtime = 0;
 let cachedBody = '';
 
+// Apply source-line wrappers once (they snapshot the current renderer)
+applySourceLineWrappers(marked);
+
 function render() {
   const mtime = fs.statSync(absFile).mtimeMs;
   if (mtime === lastMtime) return;
   lastMtime = mtime;
-  cachedBody = marked.parse(fs.readFileSync(absFile, 'utf8'));
+  const md = fs.readFileSync(absFile, 'utf8');
+  // Re-register walkTokens per render (needs fresh cursor for each markdown text)
+  marked.use(sourceLines(md));
+  cachedBody = marked.parse(md);
   console.log(`[${new Date().toLocaleTimeString()}] rendered ${path.basename(absFile)}`);
 }
 

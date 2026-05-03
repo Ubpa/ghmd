@@ -14,13 +14,17 @@ const fs = require('fs');
 const emojiMap = {};
 gemoji.forEach(e => e.names.forEach(n => { emojiMap[n] = e.emoji; }));
 
+const { sourceLines, applySourceLineWrappers } = require('./source-lines.cjs');
+
 const uiCss = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.css'), 'utf8');
 const tocJs  = fs.readFileSync(path.join(__dirname, '..', 'src', 'toc.js'), 'utf8');
+const scrollSyncJs = fs.readFileSync(path.join(__dirname, '..', 'src', 'scroll-sync.js'), 'utf8');
 
 let activePanel = null;
 let activeKey = null;
 let activeTheme = 'light';
 let changeDocSub = null;
+let scrollSyncSub = null;
 let lastRenderedHtml = '';
 
 function activate(context) {
@@ -90,12 +94,26 @@ function openPreview(context, toSide) {
       const currentDoc = vscode.workspace.textDocuments.find(d => d.uri.toString() === activeKey);
       if (currentDoc) updatePreview(activePanel, currentDoc, context);
     }
+    if (msg.type === 'revealLine') {
+      const editor = vscode.window.activeTextEditor;
+      if (editor && editor.document.uri.toString() === activeKey) {
+        const line = Math.max(0, msg.line - 1);
+        const range = new vscode.Range(line, 0, line, 0);
+        editor.revealRange(range, vscode.TextEditorRevealType.AtTop);
+      }
+    }
   });
 
   changeDocSub = vscode.workspace.onDidChangeTextDocument(e => {
     if (e.document.uri.toString() === activeKey) {
       updatePreview(activePanel, e.document, context);
     }
+  });
+
+  scrollSyncSub = vscode.window.onDidChangeTextEditorVisibleRanges(e => {
+    if (!activePanel || e.textEditor.document.uri.toString() !== activeKey) return;
+    const line = e.visibleRanges[0]?.start.line + 1;
+    if (line) activePanel.webview.postMessage({ type: 'scrollToLine', line });
   });
 
   updatePreview(activePanel, doc, context);
@@ -105,6 +123,7 @@ function openPreview(context, toSide) {
     activeKey = null;
     lastRenderedHtml = '';
     if (changeDocSub) { changeDocSub.dispose(); changeDocSub = null; }
+    if (scrollSyncSub) { scrollSyncSub.dispose(); scrollSyncSub = null; }
   });
 }
 
@@ -113,7 +132,7 @@ function slugify(text) {
     .toLowerCase().replace(/[^\w一-鿿\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
 }
 
-function getMarked() {
+function getMarked(markdown) {
   const marked = new Marked();
   // frontmatter MUST be registered before footnote — reverse order crashes on files with both
   marked.use({ extensions: [frontmatterExtension] });
@@ -149,6 +168,9 @@ function getMarked() {
       }
     }
   });
+  // Source line tracking: walkTokens annotates _line, wrappers inject data-source-line
+  marked.use(sourceLines(markdown));
+  applySourceLineWrappers(marked);
   return marked;
 }
 
@@ -161,10 +183,11 @@ function vendor(context, ...segments) {
 }
 
 function updatePreview(panel, doc, context) {
-  const marked = getMarked();
+  const text = doc.getText();
+  const marked = getMarked(text);
   let body;
   try {
-    body = marked.parse(doc.getText());
+    body = marked.parse(text);
   } catch (err) {
     vscode.window.showErrorMessage(`GHMD: render failed — ${err.message}`);
     return;
@@ -278,6 +301,12 @@ ${body}
   const initTheme = document.documentElement.getAttribute('data-theme');
   mermaid.initialize({ startOnLoad: true, theme: initTheme === 'dark' ? 'dark' : 'default' });
   buildToc();
+
+  ${scrollSyncJs}
+  initScrollSync(msg => vscode.postMessage(msg));
+  window.addEventListener('message', e => {
+    if (e.data.type === 'scrollToLine') scrollToLine(e.data.line);
+  });
 </script>
 </body>
 </html>`;
