@@ -33,38 +33,18 @@ flowchart LR
 > [!IMPORTANT]
 > These are the features that prevent users from switching to GHMD from MPE. Ship these first.
 
-### Scroll Sync
+### Scroll Sync — Done
 
-- [ ] Editor-to-preview sync (cursor position maps to preview scroll)
-- [ ] Preview-to-editor sync (clicking preview scrolls editor)
-- [ ] Source map generation during marked parsing (line number → HTML element mapping)
-- [ ] Debounce scroll events to avoid jitter
-- [ ] Handle edge cases: collapsed sections, mermaid diagrams, math blocks
+- [x] Editor-to-preview sync (smooth scroll via `scrollIntoView`)
+- [x] Preview-to-editor sync (jump via `revealRange`)
+- [x] Source line tracking via renderer wrapper pattern (`src/source-lines.cjs`)
+- [x] Feedback loop prevention on both sides (webview + extension host)
+- [x] Client-side scroll handling (`src/scroll-sync.js`)
 
-**Approach:** Inject `data-source-line` attributes during marked rendering, then use `IntersectionObserver` + `postMessage` to sync positions.
+**Implementation:** Renderer wrapper pattern — snapshot existing renderers after all plugins register, wrap each with `data-source-line` injection via regex on first opening tag. See [design doc](./scroll-sync-design-v2.md).
 
-<details>
-<summary>Technical design sketch</summary>
-
-```mermaid
-sequenceDiagram
-    participant E as Editor
-    participant X as Extension Host
-    participant W as Webview
-
-    Note over E,W: Editor → Preview
-    E->>X: onDidChangeTextEditorVisibleRanges
-    X->>W: postMessage("scrollTo", line)
-    W->>W: Find element with data-source-line >= line
-    W->>W: scrollIntoView
-
-    Note over E,W: Preview → Editor
-    W->>W: IntersectionObserver detects visible element
-    W->>X: postMessage("revealLine", line)
-    X->>E: revealRange(line)
-```
-
-</details>
+> [!NOTE]
+> Editor scroll is instant (VS Code API limitation — `revealRange` has no smooth scroll). Preview scroll is smooth (`scrollIntoView` with `behavior: 'smooth'`).
 
 ### Export to HTML
 
@@ -185,8 +165,8 @@ gantt
     axisFormat %b %d
 
     section v0.2 — Core
-    Scroll sync           :a1, 2026-05-05, 7d
-    Export to HTML         :a2, after a1, 3d
+    Scroll sync           :done, a1, 2026-05-03, 2d
+    Export to HTML         :a2, 2026-05-05, 3d
     Export to PDF          :a3, after a2, 4d
     v0.2 release           :milestone, after a3, 0d
 
@@ -209,12 +189,12 @@ gantt
 
 ### v0.2 — Core
 
-- [ ] Scroll sync (editor → preview)
-- [ ] Scroll sync (preview → editor)
+- [x] Scroll sync (editor → preview)
+- [x] Scroll sync (preview → editor)
 - [ ] Export to self-contained HTML
 - [ ] Export to PDF via Chrome headless
 - [ ] Tests for new features
-- [ ] Update README
+- [x] Update README
 
 ### v0.3 — Productivity
 
