@@ -110,20 +110,19 @@ function updatePreview(panel, doc, context, key) {
   const marked = getMarked();
   const body = marked.parse(doc.getText());
 
-  const isDark = (panelThemes.get(key) || 'light') === 'dark';
+  const mode = panelThemes.get(key) || 'light';
+  const isDark = mode === 'dark';
+
   const ghCss   = vendor(context, 'css', isDark ? 'github-markdown-dark.css' : 'github-markdown-light.css');
   const hljsCss = vendor(context, 'css', isDark ? 'hljs-dark.css' : 'hljs-light.css');
-
-  const katexCssLocal        = vendor(context, 'katex', 'katex.min.css');
-  const katexJsLocal         = vendor(context, 'katex', 'katex.min.js');
-  const katexAutoRenderLocal = vendor(context, 'katex', 'auto-render.min.js');
-  const mermaidJsLocal       = vendor(context, 'mermaid.min.js');
 
   const katexFontsUri = panel.webview.asWebviewUri(
     vscode.Uri.file(path.join(context.extensionPath, 'vendor', 'katex', 'fonts'))
   );
-
-  const mode = isDark ? 'dark' : 'light';
+  const katexCssLocal        = vendor(context, 'katex', 'katex.min.css');
+  const katexJsLocal         = vendor(context, 'katex', 'katex.min.js');
+  const katexAutoRenderLocal = vendor(context, 'katex', 'auto-render.min.js');
+  const mermaidJsLocal       = vendor(context, 'mermaid.min.js');
 
   const nonce = getNonce();
 
@@ -132,13 +131,24 @@ function updatePreview(panel, doc, context, key) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="${isDark ? 'dark' : 'only light'}">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' https://cdn.jsdelivr.net; script-src 'nonce-${nonce}' https://cdn.jsdelivr.net; img-src ${panel.webview.cspSource} https: data:; font-src ${panel.webview.cspSource} https://cdn.jsdelivr.net;">
 <style>${ghCss}</style>
 <style>${hljsCss}</style>
 <style>
   html, body { margin: 0; padding: 0; }
-  html[data-theme="light"] { background: #fff; color-scheme: light; }
-  html[data-theme="dark"]  { background: #0d1117; color-scheme: dark; }
+  html[data-theme="light"] {
+    background: #fff;
+    color-scheme: only light;
+    --vscode-textBlockQuote-background: transparent !important;
+    --vscode-textBlockQuote-border: #d1d9e0 !important;
+  }
+  html[data-theme="dark"] {
+    background: #0d1117;
+    color-scheme: only dark;
+    --vscode-textBlockQuote-background: #161b22 !important;
+    --vscode-textBlockQuote-border: #3d444d !important;
+  }
 
   .ghmd-wrapper {
     box-sizing: border-box;
@@ -241,19 +251,9 @@ ${body}
 </div>
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
-  function applyTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    document.querySelectorAll('picture source[media*="prefers-color-scheme"]').forEach(src => {
-      const orig = src.getAttribute('data-media') || src.getAttribute('media');
-      if (!src.getAttribute('data-media')) src.setAttribute('data-media', orig);
-      const wantsDark = orig.includes('dark');
-      src.setAttribute('media', (wantsDark === (theme === 'dark')) ? 'all' : 'not all');
-    });
-  }
 
   document.getElementById('themeBtn').addEventListener('click', () => {
     const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-    applyTheme(next);
     vscode.postMessage({ type: 'themeChanged', theme: next });
     document.querySelectorAll('.mermaid[data-processed],.mermaid svg').forEach(el => {
       const pre = el.closest('pre') || el;
@@ -263,8 +263,8 @@ ${body}
     mermaid.run();
   });
 
-  applyTheme(document.documentElement.getAttribute('data-theme'));
   document.querySelectorAll('pre.mermaid').forEach(el => { el._originalText = el.textContent; });
+
 
   renderMathInElement(document.querySelector('.ghmd-wrapper'), {
     delimiters: [
