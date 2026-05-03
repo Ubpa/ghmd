@@ -21,6 +21,7 @@ let activePanel = null;
 let activeKey = null;
 let activeTheme = 'light';
 let changeDocSub = null;
+let lastRenderedHtml = '';
 
 function activate(context) {
   vscode.commands.executeCommand('setContext', 'hasCustomMarkdownPreview', true);
@@ -38,6 +39,7 @@ function followEditor(doc, context) {
   const key = doc.uri.toString();
   if (key === activeKey) return;
   activeKey = key;
+  lastRenderedHtml = '';
   activePanel.title = `Preview: ${path.basename(doc.fileName)}`;
   if (changeDocSub) changeDocSub.dispose();
   changeDocSub = vscode.workspace.onDidChangeTextDocument(e => {
@@ -73,6 +75,7 @@ function openPreview(context, toSide) {
     { viewColumn: column, preserveFocus: true },
     {
       enableScripts: true,
+      retainContextWhenHidden: true,
       localResourceRoots: [
         vscode.Uri.file(path.join(context.extensionPath, 'vendor')),
       ],
@@ -100,6 +103,7 @@ function openPreview(context, toSide) {
   activePanel.onDidDispose(() => {
     activePanel = null;
     activeKey = null;
+    lastRenderedHtml = '';
     if (changeDocSub) { changeDocSub.dispose(); changeDocSub = null; }
   });
 }
@@ -179,6 +183,10 @@ function updatePreview(panel, doc, context) {
   const katexJsLocal         = vendor(context, 'katex', 'katex.min.js');
   const katexAutoRenderLocal = vendor(context, 'katex', 'auto-render.min.js');
   const mermaidJsLocal       = vendor(context, 'mermaid.min.js');
+
+  const cacheKey = body + mode;
+  if (cacheKey === lastRenderedHtml) return;
+  lastRenderedHtml = cacheKey;
 
   const nonce = getNonce();
 
