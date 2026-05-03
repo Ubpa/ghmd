@@ -1,0 +1,57 @@
+{
+  "name": "ghmd",
+  "displayName": "GHMD — GitHub Markdown Preview",
+  "description": "GitHub-style Markdown preview: standalone server + VS Code extension",
+  "version": "0.1.0",
+  "publisher": "ubpa",
+  "bin": {
+    "ghmd": "./serve.mjs"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "main": "./dist/extension.js",
+  "categories": ["Other"],
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      { "command": "ghmd.openPreview", "title": "GHMD: Open Preview", "icon": "$(open-preview)" },
+      { "command": "ghmd.openPreviewToSide", "title": "GHMD: Open Preview to the Side", "icon": "$(open-preview)" }
+    ],
+    "menus": {
+      "editor/title": [
+        { "when": "resourceLangId == markdown", "command": "ghmd.openPreviewToSide", "group": "navigation" }
+      ],
+      "commandPalette": [
+        { "command": "ghmd.openPreview", "when": "resourceLangId == markdown" },
+        { "command": "ghmd.openPreviewToSide", "when": "resourceLangId == markdown" }
+      ]
+    },
+    "keybindings": [
+      { "command": "ghmd.openPreviewToSide", "key": "ctrl+shift+v", "mac": "cmd+shift+v", "when": "resourceLangId == markdown" }
+    ]
+  },
+  "scripts": {
+    "start": "node serve.mjs",
+    "init-offline": "node serve.mjs --init",
+    "vendor": "node scripts/vendor.mjs",
+    "build": "npm run vendor && esbuild src/extension.cjs --bundle --outfile=dist/extension.js --platform=node --external:vscode --format=cjs --minify",
+    "dev": "npm run vendor && esbuild src/extension.cjs --bundle --outfile=dist/extension.js --platform=node --external:vscode --format=cjs --sourcemap",
+    "package": "npm run build && npx @vscode/vsce package --allow-missing-repository"
+  },
+  "dependencies": {
+    "github-markdown-css": "^5.9.0",
+    "highlight.js": "^11.11.1",
+    "marked": "^18.0.3",
+    "marked-alert": "^2.1.2",
+    "marked-footnote": "^1.4.0"
+  },
+  "optionalDependencies": {
+    "katex": "^0.16.45",
+    "mermaid": "^11.14.0"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.9.1",
+    "esbuild": "^0.28.0"
+  }
+}

@@ -1,0 +1,7 @@
+.vscode/**
+.git/**
+*.vsix
+src/**
+scripts/**
+node_modules/**
+serve.mjs
