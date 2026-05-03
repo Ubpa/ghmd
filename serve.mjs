@@ -115,8 +115,10 @@ function html(body) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${path.basename(absFile)} — ghmd</title>
-<style id="gh-css">${ghLightCss}</style>
-<style id="hljs-css">${hljsLightCss}</style>
+<style id="gh-light">${ghLightCss}</style>
+<style id="gh-dark" disabled>${ghDarkCss}</style>
+<style id="hljs-light">${hljsLightCss}</style>
+<style id="hljs-dark" disabled>${hljsDarkCss}</style>
 <style>
   html, body { margin: 0; padding: 0; }
   html[data-theme="light"] { background: #fff; color-scheme: light; }
@@ -214,12 +216,12 @@ ${mermaidBlock()}
 ${body}
 </div>
 <script>
-  const _css = { gh: { light: ${JSON.stringify(ghLightCss)}, dark: ${JSON.stringify(ghDarkCss)} }, hljs: { light: ${JSON.stringify(hljsLightCss)}, dark: ${JSON.stringify(hljsDarkCss)} } };
-
   function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
-    document.getElementById('gh-css').textContent = _css.gh[theme];
-    document.getElementById('hljs-css').textContent = _css.hljs[theme];
+    document.getElementById('gh-light').disabled = (theme !== 'light');
+    document.getElementById('gh-dark').disabled  = (theme !== 'dark');
+    document.getElementById('hljs-light').disabled = (theme !== 'light');
+    document.getElementById('hljs-dark').disabled  = (theme !== 'dark');
     document.querySelectorAll('picture source[media*="prefers-color-scheme"]').forEach(src => {
       const orig = src.getAttribute('data-media') || src.getAttribute('media');
       if (!src.getAttribute('data-media')) src.setAttribute('data-media', orig);

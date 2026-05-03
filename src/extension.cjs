@@ -123,10 +123,7 @@ function updatePreview(panel, doc, context, key) {
     vscode.Uri.file(path.join(context.extensionPath, 'vendor', 'katex', 'fonts'))
   );
 
-  const vsTheme = vscode.window.activeColorTheme.kind;
-  const vsIsDark = vsTheme === vscode.ColorThemeKind.Dark || vsTheme === vscode.ColorThemeKind.HighContrastDark;
-  const defaultMode = vsIsDark ? 'dark' : 'light';
-  const mode = panelThemes.get(key) || defaultMode;
+  const mode = panelThemes.get(key) || 'light';
 
   const nonce = getNonce();
 
@@ -136,8 +133,10 @@ function updatePreview(panel, doc, context, key) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' https://cdn.jsdelivr.net; script-src 'nonce-${nonce}' https://cdn.jsdelivr.net; img-src ${panel.webview.cspSource} https: data:; font-src ${panel.webview.cspSource} https://cdn.jsdelivr.net;">
-<style id="gh-css">${mode === 'dark' ? ghDarkCss : ghLightCss}</style>
-<style id="hljs-css">${mode === 'dark' ? hljsDarkCss : hljsLightCss}</style>
+<style id="gh-light">${ghLightCss}</style>
+<style id="gh-dark" disabled>${ghDarkCss}</style>
+<style id="hljs-light">${hljsLightCss}</style>
+<style id="hljs-dark" disabled>${hljsDarkCss}</style>
 <style>
   html, body { margin: 0; padding: 0; }
   html[data-theme="light"] { background: #fff; color-scheme: light; }
@@ -244,12 +243,12 @@ ${body}
 </div>
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
-  const _css = { gh: { light: ${JSON.stringify(ghLightCss)}, dark: ${JSON.stringify(ghDarkCss)} }, hljs: { light: ${JSON.stringify(hljsLightCss)}, dark: ${JSON.stringify(hljsDarkCss)} } };
-
   function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
-    document.getElementById('gh-css').textContent = _css.gh[theme];
-    document.getElementById('hljs-css').textContent = _css.hljs[theme];
+    document.getElementById('gh-light').disabled = (theme !== 'light');
+    document.getElementById('gh-dark').disabled  = (theme !== 'dark');
+    document.getElementById('hljs-light').disabled = (theme !== 'light');
+    document.getElementById('hljs-dark').disabled  = (theme !== 'dark');
     document.querySelectorAll('picture source[media*="prefers-color-scheme"]').forEach(src => {
       const orig = src.getAttribute('data-media') || src.getAttribute('media');
       if (!src.getAttribute('data-media')) src.setAttribute('data-media', orig);
