@@ -137,18 +137,13 @@ function updatePreview(panel, doc, context, key) {
 <style>${hljsCss}</style>
 <style>
   html, body { margin: 0; padding: 0; }
-  html[data-theme="light"] {
-    background: #fff;
-    color-scheme: only light;
-    --vscode-textBlockQuote-background: transparent !important;
-    --vscode-textBlockQuote-border: #d1d9e0 !important;
-  }
-  html[data-theme="dark"] {
-    background: #0d1117;
-    color-scheme: only dark;
-    --vscode-textBlockQuote-background: #161b22 !important;
-    --vscode-textBlockQuote-border: #3d444d !important;
-  }
+  html[data-theme="light"] { background: #fff; color-scheme: only light; }
+  html[data-theme="dark"]  { background: #0d1117; color-scheme: only dark; }
+
+  /* VS Code's webview default CSS fills in properties github-markdown intentionally omits.
+     These two rules restore the expected github-style rendering. */
+  .markdown-body blockquote { background-color: transparent; }
+  .markdown-body code, .markdown-body tt { color: inherit; }
 
   .ghmd-wrapper {
     box-sizing: border-box;
@@ -264,7 +259,6 @@ ${body}
   });
 
   document.querySelectorAll('pre.mermaid').forEach(el => { el._originalText = el.textContent; });
-
 
   renderMathInElement(document.querySelector('.ghmd-wrapper'), {
     delimiters: [
