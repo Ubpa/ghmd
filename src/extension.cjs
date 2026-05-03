@@ -34,6 +34,9 @@ function activate(context) {
   context.subscriptions.push(
     vscode.commands.registerCommand('ghmd.openPreview', () => openPreview(context, false)),
     vscode.commands.registerCommand('ghmd.openPreviewToSide', () => openPreview(context, true)),
+    vscode.commands.registerCommand('ghmd.zoomIn', () => { if (activePanel) activePanel.webview.postMessage({ type: 'zoom', delta: 10 }); }),
+    vscode.commands.registerCommand('ghmd.zoomOut', () => { if (activePanel) activePanel.webview.postMessage({ type: 'zoom', delta: -10 }); }),
+    vscode.commands.registerCommand('ghmd.zoomReset', () => { if (activePanel) activePanel.webview.postMessage({ type: 'zoom', reset: true }); }),
     vscode.window.onDidChangeActiveTextEditor(editor => {
       if (!activePanel || !editor || editor.document.languageId !== 'markdown') return;
       followEditor(editor.document, context);
@@ -127,7 +130,12 @@ function openPreview(context, toSide) {
 
   updatePreview(activePanel, doc, context);
 
+  activePanel.onDidChangeViewState(e => {
+    vscode.commands.executeCommand('setContext', 'ghmd.previewActive', e.webviewPanel.active);
+  });
+
   activePanel.onDidDispose(() => {
+    vscode.commands.executeCommand('setContext', 'ghmd.previewActive', false);
     activePanel = null;
     activeKey = null;
     lastRenderedHtml = '';
@@ -273,8 +281,8 @@ function updatePreview(panel, doc, context) {
     <span class="icon-moon">🌙</span>
   </button>
 </div>
-<div class="ghmd-wrapper markdown-body">
 <nav class="toc-panel" id="tocPanel"></nav>
+<div class="ghmd-wrapper markdown-body">
 ${body}
 </div>
 <script nonce="${nonce}">
@@ -307,14 +315,66 @@ ${body}
     throwOnError: false,
   });
 
+  function fixMermaidSvgSizes() {
+    document.querySelectorAll('pre.mermaid svg').forEach(svg => {
+      if (_zoom === 100) { svg.style.width = ''; svg.style.maxWidth = ''; return; }
+      const vb = svg.getAttribute('viewBox');
+      if (!vb) return;
+      const w = parseFloat(vb.split(' ')[2]);
+      if (w) { svg.style.width = w + 'px'; svg.style.maxWidth = 'none'; }
+    });
+  }
+  new MutationObserver(fixMermaidSvgSizes).observe(document.querySelector('.ghmd-wrapper'), { childList: true, subtree: true });
+
   const initTheme = document.documentElement.getAttribute('data-theme');
   mermaid.initialize({ startOnLoad: true, theme: initTheme === 'dark' ? 'dark' : 'default' });
   buildToc();
 
   ${scrollSyncJs}
   initScrollSync(msg => vscode.postMessage(msg));
+
+  const wrapper = document.querySelector('.ghmd-wrapper');
+  let _zoom = (vscode.getState() || {}).zoom || 100;
+  wrapper.style.zoom = _zoom + '%';
+  if (_zoom !== 100) fixMermaidSvgSizes();
+
+  // Zoom slider UI
+  const zoomBar = document.createElement('div');
+  zoomBar.className = 'zoom-bar';
+  zoomBar.innerHTML = '<button class="zoom-btn" id="zoomOutBtn">−</button>'
+    + '<input type="range" id="zoomSlider" min="30" max="300" step="10">'
+    + '<button class="zoom-btn" id="zoomInBtn">+</button>'
+    + '<span id="zoomLabel"></span>';
+  document.body.appendChild(zoomBar);
+  const zoomSlider = document.getElementById('zoomSlider');
+  const zoomLabel = document.getElementById('zoomLabel');
+  let zoomHideTimer = null;
+
+  function applyZoom(val) {
+    _zoom = Math.max(30, Math.min(300, val));
+    wrapper.style.zoom = _zoom + '%';
+    zoomSlider.value = _zoom;
+    zoomLabel.textContent = _zoom + '%';
+    vscode.setState({ ...(vscode.getState() || {}), zoom: _zoom });
+    fixMermaidSvgSizes();
+    showZoomBar();
+  }
+
+  function showZoomBar() {
+    zoomBar.classList.add('visible');
+    clearTimeout(zoomHideTimer);
+    zoomHideTimer = setTimeout(() => zoomBar.classList.remove('visible'), 2000);
+  }
+
+  zoomSlider.value = _zoom;
+  zoomLabel.textContent = _zoom + '%';
+  zoomSlider.addEventListener('input', () => applyZoom(parseInt(zoomSlider.value)));
+  document.getElementById('zoomOutBtn').addEventListener('click', () => applyZoom(_zoom - 10));
+  document.getElementById('zoomInBtn').addEventListener('click', () => applyZoom(_zoom + 10));
+
   window.addEventListener('message', e => {
     if (e.data.type === 'scrollToLine') scrollToLine(e.data.line);
+    if (e.data.type === 'zoom') applyZoom(e.data.reset ? 100 : _zoom + e.data.delta);
   });
 </script>
 </body>

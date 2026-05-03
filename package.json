@@ -28,6 +28,18 @@
         "command": "ghmd.openPreviewToSide",
         "title": "GHMD: Open Preview to the Side",
         "icon": "$(mark-github)"
+      },
+      {
+        "command": "ghmd.zoomIn",
+        "title": "GHMD: Zoom In"
+      },
+      {
+        "command": "ghmd.zoomOut",
+        "title": "GHMD: Zoom Out"
+      },
+      {
+        "command": "ghmd.zoomReset",
+        "title": "GHMD: Reset Zoom"
       }
     ],
     "menus": {
@@ -62,6 +74,24 @@
         "key": "ctrl+k v",
         "mac": "cmd+k v",
         "when": "resourceLangId == markdown"
+      },
+      {
+        "command": "ghmd.zoomIn",
+        "key": "ctrl+=",
+        "mac": "cmd+=",
+        "when": "ghmd.previewActive"
+      },
+      {
+        "command": "ghmd.zoomOut",
+        "key": "ctrl+-",
+        "mac": "cmd+-",
+        "when": "ghmd.previewActive"
+      },
+      {
+        "command": "ghmd.zoomReset",
+        "key": "ctrl+0",
+        "mac": "cmd+0",
+        "when": "ghmd.previewActive"
       }
     ]
   },

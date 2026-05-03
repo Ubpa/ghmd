@@ -182,8 +182,8 @@ ${mermaidBlock()}
     <span class="icon-moon">🌙</span>
   </button>
 </div>
-<div class="ghmd-wrapper markdown-body">
 <nav class="toc-panel" id="tocPanel"></nav>
+<div class="ghmd-wrapper markdown-body">
 ${body}
 </div>
 <script>
