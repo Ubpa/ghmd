@@ -28,12 +28,21 @@ if (!file) {
 const port = parseInt(process.argv[3] || '6419');
 const absFile = path.resolve(file);
 
+function slugify(text) {
+  return text.replace(/<[^>]+>/g, '').trim()
+    .toLowerCase().replace(/[^\w一-鿿\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+}
+
 // ── Markdown pipeline ──
 const marked = new Marked();
 marked.use(markedAlert());
 marked.use(markedFootnote());
 marked.use({
   renderer: {
+    heading({ text, depth }) {
+      const id = slugify(text);
+      return `<h${depth} id="${id}">${text}</h${depth}>\n`;
+    },
     code({ text, lang }) {
       if (lang === 'mermaid') return `<pre class="mermaid">${escHtml(text)}</pre>`;
       if (lang === 'math') return `<div class="math-block">$$${escHtml(text)}$$</div>`;
@@ -56,6 +65,10 @@ marked.use({
 function escHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+
+// ── Shared UI (single source of truth) ──
+const uiCss  = fs.readFileSync(new URL('./src/ui.css', import.meta.url).pathname, 'utf8');
+const tocJs  = fs.readFileSync(new URL('./src/toc.js', import.meta.url).pathname, 'utf8');
 
 // ── CSS (always local — installed as core deps) ──
 const cssDir = path.dirname(new URL(import.meta.resolve('github-markdown-css')).pathname);
@@ -120,86 +133,13 @@ function html(body) {
 <style id="hljs-light">${hljsLightCss}</style>
 <style id="hljs-dark" disabled>${hljsDarkCss}</style>
 <style>
-  html, body { margin: 0; padding: 0; }
+  /* Page-specific overrides; shared UI is in src/ui.css */
   html[data-theme="light"] { background: #fff; color-scheme: light; }
   html[data-theme="dark"]  { background: #0d1117; color-scheme: dark; }
-
-  .ghmd-wrapper {
-    box-sizing: border-box;
-    width: 100%;
-    max-width: 980px;
-    margin: 0 auto;
-    padding: 45px;
-  }
+  .ghmd-wrapper { padding: 45px; }
   @media (max-width: 767px) { .ghmd-wrapper { padding: 15px; } }
-
-  .theme-toggle {
-    position: fixed; top: 16px; right: 16px; z-index: 999;
-    width: 40px; height: 40px;
-    border: 1px solid #d0d7de; border-radius: 8px;
-    background: #f6f8fa; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px; line-height: 1;
-    transition: background 0.2s, border-color 0.2s;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-  }
-  html[data-theme="dark"] .theme-toggle { background: #21262d; border-color: #30363d; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
-  .theme-toggle:hover { opacity: 0.8; }
-  .theme-toggle .icon-sun, .theme-toggle .icon-moon { display: none; }
-  html[data-theme="light"] .theme-toggle .icon-moon { display: block; }
-  html[data-theme="dark"]  .theme-toggle .icon-sun  { display: block; }
-
-  /* Alerts */
-  .markdown-alert { padding: 8px 16px; margin-bottom: 16px; border-left: 4px solid; border-radius: 6px; }
-  .markdown-alert > :first-child { margin-top: 0; }
-  .markdown-alert > :last-child  { margin-bottom: 0; }
-  .markdown-alert-title { display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 4px; }
-  .markdown-alert-title svg { fill: currentColor; }
-
-  html[data-theme="light"] .markdown-alert-note  { border-color: #1f6feb; }
-  html[data-theme="light"] .markdown-alert-note .markdown-alert-title { color: #1f6feb; }
-  html[data-theme="light"] .markdown-alert-tip   { border-color: #238636; }
-  html[data-theme="light"] .markdown-alert-tip .markdown-alert-title  { color: #238636; }
-  html[data-theme="light"] .markdown-alert-important { border-color: #8957e5; }
-  html[data-theme="light"] .markdown-alert-important .markdown-alert-title { color: #8957e5; }
-  html[data-theme="light"] .markdown-alert-warning { border-color: #d29922; }
-  html[data-theme="light"] .markdown-alert-warning .markdown-alert-title { color: #d29922; }
-  html[data-theme="light"] .markdown-alert-caution { border-color: #da3633; }
-  html[data-theme="light"] .markdown-alert-caution .markdown-alert-title { color: #da3633; }
-
-  html[data-theme="dark"] .markdown-alert-note  { border-color: #58a6ff; }
-  html[data-theme="dark"] .markdown-alert-note .markdown-alert-title { color: #58a6ff; }
-  html[data-theme="dark"] .markdown-alert-tip   { border-color: #3fb950; }
-  html[data-theme="dark"] .markdown-alert-tip .markdown-alert-title  { color: #3fb950; }
-  html[data-theme="dark"] .markdown-alert-important { border-color: #bc8cff; }
-  html[data-theme="dark"] .markdown-alert-important .markdown-alert-title { color: #bc8cff; }
-  html[data-theme="dark"] .markdown-alert-warning { border-color: #d29922; }
-  html[data-theme="dark"] .markdown-alert-warning .markdown-alert-title { color: #d29922; }
-  html[data-theme="dark"] .markdown-alert-caution { border-color: #f85149; }
-  html[data-theme="dark"] .markdown-alert-caution .markdown-alert-title { color: #f85149; }
-
-  /* Diff */
-  .diff-add, .diff-del { display: inline-block; width: 100%; }
-  html[data-theme="light"] .diff-add { color: #1a7f37; background: #dafbe1; }
-  html[data-theme="light"] .diff-del { color: #cf222e; background: #ffebe9; }
-  html[data-theme="dark"]  .diff-add { color: #3fb950; background: rgba(46,160,67,0.15); }
-  html[data-theme="dark"]  .diff-del { color: #f85149; background: rgba(248,81,73,0.10); }
-
-  .contains-task-list { list-style: none; padding-left: 0; }
-  .task-list-item { position: relative; padding-left: 24px; }
-  .task-list-item input[type="checkbox"] { position: absolute; left: 0; top: 4px; }
-
-  .footnotes { font-size: 0.875em; margin-top: 32px; padding-top: 16px; }
-  html[data-theme="light"] .footnotes { border-top: 1px solid #d0d7de; }
-  html[data-theme="dark"]  .footnotes { border-top: 1px solid #30363d; }
-
-  kbd { display: inline-block; padding: 3px 5px; font: 11px ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace; line-height: 10px; vertical-align: middle; border-radius: 6px; }
-  html[data-theme="light"] kbd { color: #1f2328; background: #f6f8fa; border: 1px solid #d0d7de; box-shadow: inset 0 -1px 0 #d0d7de; }
-  html[data-theme="dark"]  kbd { color: #c9d1d9; background: #161b22; border: 1px solid #30363d; box-shadow: inset 0 -1px 0 #21262d; }
-
-  .math-block { text-align: center; margin: 16px 0; overflow-x: auto; }
-  pre.mermaid { background: transparent; border: none; text-align: center; }
 </style>
+<style>${uiCss}</style>
 ${katexBlock()}
 ${mermaidBlock()}
 <script>
@@ -208,11 +148,15 @@ ${mermaidBlock()}
 </script>
 </head>
 <body>
-<button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
-  <span class="icon-sun">☀️</span>
-  <span class="icon-moon">🌙</span>
-</button>
+<div class="toolbar">
+  <button class="toc-toggle" id="tocBtn" onclick="toggleToc()" title="Table of contents">☰</button>
+  <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+    <span class="icon-sun">☀️</span>
+    <span class="icon-moon">🌙</span>
+  </button>
+</div>
 <div class="ghmd-wrapper markdown-body">
+<nav class="toc-panel" id="tocPanel"></nav>
 ${body}
 </div>
 <script>
@@ -233,14 +177,17 @@ ${body}
   function toggleTheme() {
     const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
     localStorage.setItem('ghmd-theme', next);
-    applyTheme(next);
+    // Reset mermaid diagrams before theme switch to avoid two-step flash
     document.querySelectorAll('.mermaid[data-processed],.mermaid svg').forEach(el => {
       const pre = el.closest('pre') || el;
       if (pre._originalText) { pre.removeAttribute('data-processed'); pre.innerHTML = pre._originalText; }
     });
     mermaid.initialize({ startOnLoad: false, theme: next === 'dark' ? 'dark' : 'default' });
+    applyTheme(next);
     mermaid.run();
   }
+
+  ${tocJs}
 
   applyTheme(document.documentElement.getAttribute('data-theme'));
   document.querySelectorAll('pre.mermaid').forEach(el => { el._originalText = el.textContent; });
@@ -255,6 +202,7 @@ ${body}
 
   const initTheme = document.documentElement.getAttribute('data-theme');
   mermaid.initialize({ startOnLoad: true, theme: initTheme === 'dark' ? 'dark' : 'default' });
+  buildToc();
 
   let mtime = '';
   setInterval(async () => {

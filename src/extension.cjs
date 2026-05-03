@@ -6,6 +6,9 @@ const markedFootnote = require('marked-footnote');
 const hljs = require('highlight.js');
 const fs = require('fs');
 
+const uiCss = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.css'), 'utf8');
+const tocJs  = fs.readFileSync(path.join(__dirname, '..', 'src', 'toc.js'), 'utf8');
+
 const panels = new Map();
 const panelThemes = new Map();
 
@@ -71,12 +74,21 @@ function openPreview(context, toSide) {
   });
 }
 
+function slugify(text) {
+  return text.replace(/<[^>]+>/g, '').trim()
+    .toLowerCase().replace(/[^\w一-鿿\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+}
+
 function getMarked() {
   const marked = new Marked();
   marked.use(markedAlert());
   marked.use(markedFootnote());
   marked.use({
     renderer: {
+      heading({ text, depth }) {
+        const id = slugify(text);
+        return `<h${depth} id="${id}">${text}</h${depth}>\n`;
+      },
       code({ text, lang }) {
         if (lang === 'mermaid') return `<pre class="mermaid">${escHtml(text)}</pre>`;
         if (lang === 'math') return `<div class="math-block">$$${escHtml(text)}$$</div>`;
@@ -136,89 +148,21 @@ function updatePreview(panel, doc, context, key) {
 <style>${ghCss}</style>
 <style>${hljsCss}</style>
 <style>
-  html, body { margin: 0; padding: 0; }
+  /* VS Code-specific overrides; shared UI is in src/ui.css */
   /* Match github-markdown-css body backgrounds so VS Code's dark body doesn't bleed through padding */
   html[data-theme="light"] { background: #ffffff; color-scheme: only light; }
   html[data-theme="dark"]  { background: #0d1117; color-scheme: only dark; }
-
-  /* VS Code's webview default CSS fills in properties github-markdown intentionally omits.
-     These two rules restore the expected github-style rendering. */
+  /* VS Code's webview default CSS fills in properties github-markdown intentionally omits. */
   .markdown-body blockquote { background-color: transparent; }
   .markdown-body code, .markdown-body tt { color: inherit; }
-
-  .ghmd-wrapper {
-    box-sizing: border-box;
-    max-width: 980px;
-    margin: 0 auto;
-    padding: 32px 45px;
-  }
+  .ghmd-wrapper { padding: 32px 45px; }
   @media (max-width: 767px) { .ghmd-wrapper { padding: 15px; } }
-
-  .theme-toggle {
-    position: fixed; top: 12px; right: 12px; z-index: 999;
-    width: 36px; height: 36px;
-    border: 1px solid #d0d7de; border-radius: 8px;
-    background: #f6f8fa; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 18px; line-height: 1;
-    transition: background 0.2s, border-color 0.2s;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-  }
-  html[data-theme="dark"] .theme-toggle { background: #21262d; border-color: #30363d; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
-  .theme-toggle:hover { opacity: 0.8; }
-  .theme-toggle .icon-sun, .theme-toggle .icon-moon { display: none; }
-  html[data-theme="light"] .theme-toggle .icon-moon { display: block; }
-  html[data-theme="dark"]  .theme-toggle .icon-sun  { display: block; }
-
-  .markdown-alert { padding: 8px 16px; margin-bottom: 16px; border-left: 4px solid; border-radius: 6px; }
-  .markdown-alert > :first-child { margin-top: 0; }
-  .markdown-alert > :last-child  { margin-bottom: 0; }
-  .markdown-alert-title { display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 4px; }
-  .markdown-alert-title svg { fill: currentColor; }
-
-  html[data-theme="light"] .markdown-alert-note  { border-color: #1f6feb; }
-  html[data-theme="light"] .markdown-alert-note .markdown-alert-title { color: #1f6feb; }
-  html[data-theme="light"] .markdown-alert-tip   { border-color: #238636; }
-  html[data-theme="light"] .markdown-alert-tip .markdown-alert-title  { color: #238636; }
-  html[data-theme="light"] .markdown-alert-important { border-color: #8957e5; }
-  html[data-theme="light"] .markdown-alert-important .markdown-alert-title { color: #8957e5; }
-  html[data-theme="light"] .markdown-alert-warning { border-color: #d29922; }
-  html[data-theme="light"] .markdown-alert-warning .markdown-alert-title { color: #d29922; }
-  html[data-theme="light"] .markdown-alert-caution { border-color: #da3633; }
-  html[data-theme="light"] .markdown-alert-caution .markdown-alert-title { color: #da3633; }
-
-  html[data-theme="dark"] .markdown-alert-note  { border-color: #58a6ff; }
-  html[data-theme="dark"] .markdown-alert-note .markdown-alert-title { color: #58a6ff; }
-  html[data-theme="dark"] .markdown-alert-tip   { border-color: #3fb950; }
-  html[data-theme="dark"] .markdown-alert-tip .markdown-alert-title  { color: #3fb950; }
-  html[data-theme="dark"] .markdown-alert-important { border-color: #bc8cff; }
-  html[data-theme="dark"] .markdown-alert-important .markdown-alert-title { color: #bc8cff; }
-  html[data-theme="dark"] .markdown-alert-warning { border-color: #d29922; }
-  html[data-theme="dark"] .markdown-alert-warning .markdown-alert-title { color: #d29922; }
-  html[data-theme="dark"] .markdown-alert-caution { border-color: #f85149; }
-  html[data-theme="dark"] .markdown-alert-caution .markdown-alert-title { color: #f85149; }
-
-  .diff-add, .diff-del { display: inline-block; width: 100%; }
-  html[data-theme="light"] .diff-add { color: #1a7f37; background: #dafbe1; }
-  html[data-theme="light"] .diff-del { color: #cf222e; background: #ffebe9; }
-  html[data-theme="dark"]  .diff-add { color: #3fb950; background: rgba(46,160,67,0.15); }
-  html[data-theme="dark"]  .diff-del { color: #f85149; background: rgba(248,81,73,0.10); }
-
-  .contains-task-list { list-style: none; padding-left: 0; }
-  .task-list-item { position: relative; padding-left: 24px; }
-  .task-list-item input[type="checkbox"] { position: absolute; left: 0; top: 4px; }
-
-  .footnotes { font-size: 0.875em; margin-top: 32px; padding-top: 16px; }
-  html[data-theme="light"] .footnotes { border-top: 1px solid #d0d7de; }
-  html[data-theme="dark"]  .footnotes { border-top: 1px solid #30363d; }
-
-  kbd { display: inline-block; padding: 3px 5px; font: 11px ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace; line-height: 10px; vertical-align: middle; border-radius: 6px; }
-  html[data-theme="light"] kbd { color: #1f2328; background: #f6f8fa; border: 1px solid #d0d7de; box-shadow: inset 0 -1px 0 #d0d7de; }
-  html[data-theme="dark"]  kbd { color: #c9d1d9; background: #161b22; border: 1px solid #30363d; box-shadow: inset 0 -1px 0 #21262d; }
-
-  .math-block { text-align: center; margin: 16px 0; overflow-x: auto; }
-  pre.mermaid { background: transparent; border: none; text-align: center; }
+  /* Extension toolbar is slightly smaller */
+  .toolbar { top: 12px; right: 12px; }
+  .toolbar button { width: 36px; height: 36px; font-size: 18px; }
+  .toc-panel { top: 56px; right: 12px; max-height: calc(100vh - 70px); }
 </style>
+<style>${uiCss}</style>
 <!-- KaTeX: CDN first, local fallback -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css"
       onerror="document.getElementById('katex-css-local').disabled=false; this.remove();">
@@ -238,15 +182,25 @@ function updatePreview(panel, doc, context, key) {
 <script nonce="${nonce}">if(!window.mermaid){${mermaidJsLocal}}</script>
 </head>
 <body>
-<button class="theme-toggle" id="themeBtn" title="Toggle theme">
-  <span class="icon-sun">☀️</span>
-  <span class="icon-moon">🌙</span>
-</button>
+<div class="toolbar">
+  <button class="toc-toggle" id="tocBtn" title="Table of contents">☰</button>
+  <button class="theme-toggle" id="themeBtn" title="Toggle theme">
+    <span class="icon-sun">☀️</span>
+    <span class="icon-moon">🌙</span>
+  </button>
+</div>
 <div class="ghmd-wrapper markdown-body">
+<nav class="toc-panel" id="tocPanel"></nav>
 ${body}
 </div>
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
+
+  ${tocJs}
+
+  document.getElementById('tocBtn').addEventListener('click', () => {
+    document.getElementById('tocPanel').classList.toggle('open');
+  });
 
   document.getElementById('themeBtn').addEventListener('click', () => {
     const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
@@ -271,6 +225,7 @@ ${body}
 
   const initTheme = document.documentElement.getAttribute('data-theme');
   mermaid.initialize({ startOnLoad: true, theme: initTheme === 'dark' ? 'dark' : 'default' });
+  buildToc();
 </script>
 </body>
 </html>`;

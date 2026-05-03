@@ -37,7 +37,8 @@
     "vendor": "node scripts/vendor.mjs",
     "build": "npm run vendor && esbuild src/extension.cjs --bundle --outfile=dist/extension.js --platform=node --external:vscode --format=cjs --minify",
     "dev": "npm run vendor && esbuild src/extension.cjs --bundle --outfile=dist/extension.js --platform=node --external:vscode --format=cjs --sourcemap",
-    "package": "npm run build && npx @vscode/vsce package --allow-missing-repository"
+    "package": "npm run build && npx @vscode/vsce package --allow-missing-repository",
+    "test": "npm run build && node test/paths.test.mjs"
   },
   "dependencies": {
     "github-markdown-css": "^5.9.0",
