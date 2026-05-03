@@ -94,6 +94,12 @@ code --install-extension ghmd-0.1.0.vsix
 
 The extension replaces the built-in markdown preview button with the GitHub icon. Theme toggle and TOC panel are in the top-right corner.
 
+#### Scroll Sync
+
+Bidirectional scroll sync between editor and preview:
+- **Editor → Preview**: scrolling the editor smoothly scrolls the preview to the matching position
+- **Preview → Editor**: scrolling the preview jumps the editor to the corresponding source line
+
 ---
 
 ## How It Works
@@ -113,9 +119,10 @@ Both entry points share the same pipeline:
 
 1. **marked** parses GFM with plugins: alerts, footnotes, front matter, emoji, auto-linking, syntax highlighting
 2. **marked-highlight** + **highlight.js** handle code syntax highlighting
-3. **github-markdown-css** provides GitHub's exact styling
-4. **KaTeX** renders math client-side
-5. **Mermaid** renders diagrams client-side
+3. **source-lines** wraps all block renderers to inject `data-source-line` attributes (for scroll sync)
+4. **github-markdown-css** provides GitHub's exact styling
+5. **KaTeX** renders math client-side
+6. **Mermaid** renders diagrams client-side
 
 > [!NOTE]
 > The standalone server loads KaTeX/Mermaid from CDN by default (or locally after `--init`). The VS Code extension bundles everything into a 1.5 MB `.vsix`.

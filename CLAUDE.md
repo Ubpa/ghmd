@@ -38,6 +38,7 @@ node serve.mjs --init             # download katex+mermaid for offline mode
 - Theme state: the server uses `localStorage`, the extension uses a module-level `activeTheme` variable and round-trips theme changes via `postMessage`.
 - Marked plugins are used for all GitHub-supported features: `marked-alert`, `marked-footnote`, `marked-frontmatter`, `marked-highlight`, `marked-emoji` (with gemoji), `marked-linkify-it`. Custom renderer only handles mermaid, math, and diff blocks.
 - The code renderer returns `false` for non-special languages, letting `marked-highlight` handle them.
+- **Scroll sync** uses a renderer wrapper pattern: `src/source-lines.cjs` snapshots the current renderer after all plugins register, then wraps each block type's output with `data-source-line` attributes via regex injection on the first opening tag. Zero renderer reimplementation. `src/scroll-sync.js` handles bidirectional sync client-side.
 - `katex` and `mermaid` are `optionalDependencies` — the standalone server works without them (falls back to CDN), and `npm install` won't fail if they can't be built.
 
 ## Testing

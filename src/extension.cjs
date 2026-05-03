@@ -26,6 +26,8 @@ let activeTheme = 'light';
 let changeDocSub = null;
 let scrollSyncSub = null;
 let lastRenderedHtml = '';
+let scrollSyncSource = null;
+let scrollSyncTimer = null;
 
 function activate(context) {
   vscode.commands.executeCommand('setContext', 'hasCustomMarkdownPreview', true);
@@ -95,8 +97,11 @@ function openPreview(context, toSide) {
       if (currentDoc) updatePreview(activePanel, currentDoc, context);
     }
     if (msg.type === 'revealLine') {
-      const editor = vscode.window.activeTextEditor;
-      if (editor && editor.document.uri.toString() === activeKey) {
+      scrollSyncSource = 'preview';
+      clearTimeout(scrollSyncTimer);
+      scrollSyncTimer = setTimeout(() => { scrollSyncSource = null; }, 300);
+      const editor = vscode.window.visibleTextEditors.find(e => e.document.uri.toString() === activeKey);
+      if (editor) {
         const line = Math.max(0, msg.line - 1);
         const range = new vscode.Range(line, 0, line, 0);
         editor.revealRange(range, vscode.TextEditorRevealType.AtTop);
@@ -111,7 +116,11 @@ function openPreview(context, toSide) {
   });
 
   scrollSyncSub = vscode.window.onDidChangeTextEditorVisibleRanges(e => {
+    if (scrollSyncSource === 'preview') return;
     if (!activePanel || e.textEditor.document.uri.toString() !== activeKey) return;
+    scrollSyncSource = 'editor';
+    clearTimeout(scrollSyncTimer);
+    scrollSyncTimer = setTimeout(() => { scrollSyncSource = null; }, 500);
     const line = e.visibleRanges[0]?.start.line + 1;
     if (line) activePanel.webview.postMessage({ type: 'scrollToLine', line });
   });

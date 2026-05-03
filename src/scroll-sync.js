@@ -28,15 +28,15 @@ function getTopVisibleLine() {
 }
 
 function initScrollSync(postMessage) {
-  let scrollTimer = null;
-  window.addEventListener('scroll', () => {
+  let timer = null;
+  [window, document, document.body].forEach(t => t.addEventListener('scroll', () => {
     if (_syncSource === 'editor') return;
-    clearTimeout(scrollTimer);
-    scrollTimer = setTimeout(() => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
       _syncSource = 'preview';
       clearTimeout(_syncTimer);
       _syncTimer = setTimeout(() => { _syncSource = null; }, 300);
       postMessage({ type: 'revealLine', line: getTopVisibleLine() });
     }, 100);
-  });
+  }));
 }
