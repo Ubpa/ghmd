@@ -14,7 +14,9 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": ["onLanguage:markdown"],
+  "activationEvents": [
+    "onLanguage:markdown"
+  ],
   "contributes": {
     "commands": [
       {
@@ -73,11 +75,16 @@
     "test": "npm run build && node test/runTests.mjs"
   },
   "dependencies": {
+    "gemoji": "^8.1.0",
     "github-markdown-css": "^5.9.0",
     "highlight.js": "^11.11.1",
+    "js-yaml": "^4.1.1",
     "marked": "^18.0.3",
     "marked-alert": "^2.1.2",
-    "marked-footnote": "^1.4.0"
+    "marked-emoji": "^2.0.3",
+    "marked-footnote": "^1.4.0",
+    "marked-highlight": "^2.2.4",
+    "marked-linkify-it": "^3.1.15"
   },
   "optionalDependencies": {
     "katex": "^0.16.45",

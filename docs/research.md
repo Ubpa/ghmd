@@ -35,7 +35,9 @@
 | Footnotes | Yes | Yes | -- |
 | KaTeX math | Yes | KaTeX or MathJax | -- |
 | Mermaid diagrams | Yes | Yes | -- |
-| Code syntax highlight | highlight.js | Prism.js (24 themes) | Low |
+| Code syntax highlight | marked-highlight + hljs | Prism.js (24 themes) | -- |
+| YAML front matter | Yes (marked-frontmatter) | Yes | -- |
+| Auto-link URLs | Yes (marked-linkify-it) | Yes | -- |
 | PlantUML | No | Yes (local JAR or server) | Medium |
 | GraphViz | No | Yes (Viz.js, no Java) | Medium |
 | D2 diagrams | No | Yes (CLI) | Low |
@@ -43,7 +45,7 @@
 | WaveDrom / Bitfield | No | Yes | Skip |
 | Vega / Vega-lite | No | Yes | Skip |
 | Kroki gateway | No | Yes | Low |
-| Emoji shortcodes | No | Yes | Low |
+| Emoji shortcodes | Yes (gemoji) | Yes | -- |
 | CriticMarkup | No | Yes | Skip |
 | Wiki links | No | Yes | Skip |
 | Definition lists | No | Yes | Skip |

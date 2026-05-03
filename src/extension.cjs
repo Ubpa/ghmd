@@ -3,8 +3,16 @@ const path = require('path');
 const { Marked } = require('marked');
 const markedAlert = require('marked-alert');
 const markedFootnote = require('marked-footnote');
+const { frontmatterExtension } = require('./frontmatter.cjs');
+const { markedHighlight } = require('marked-highlight');
+const { markedEmoji } = require('marked-emoji');
+const markedLinkifyIt = require('marked-linkify-it');
 const hljs = require('highlight.js');
+const { gemoji } = require('gemoji');
 const fs = require('fs');
+
+const emojiMap = {};
+gemoji.forEach(e => e.names.forEach(n => { emojiMap[n] = e.emoji; }));
 
 const uiCss = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.css'), 'utf8');
 const tocJs  = fs.readFileSync(path.join(__dirname, '..', 'src', 'toc.js'), 'utf8');
@@ -103,8 +111,19 @@ function slugify(text) {
 
 function getMarked() {
   const marked = new Marked();
+  // frontmatter MUST be registered before footnote — reverse order crashes on files with both
+  marked.use({ extensions: [frontmatterExtension] });
   marked.use(markedAlert());
   marked.use(markedFootnote());
+  marked.use(markedHighlight({
+    langPrefix: 'hljs language-',
+    highlight(code, lang) {
+      if (lang && hljs.getLanguage(lang)) return hljs.highlight(code, { language: lang }).value;
+      return code;
+    }
+  }));
+  marked.use(markedEmoji({ emojis: emojiMap }));
+  marked.use(markedLinkifyIt());
   marked.use({
     renderer: {
       heading({ text, depth }) {
@@ -122,10 +141,7 @@ function getMarked() {
           }).join('\n');
           return `<pre><code class="language-diff">${lines}</code></pre>`;
         }
-        if (lang && hljs.getLanguage(lang)) {
-          return `<pre><code class="hljs language-${lang}">${hljs.highlight(text, { language: lang }).value}</code></pre>`;
-        }
-        return `<pre><code>${escHtml(text)}</code></pre>`;
+        return false;
       }
     }
   });
@@ -142,7 +158,13 @@ function vendor(context, ...segments) {
 
 function updatePreview(panel, doc, context) {
   const marked = getMarked();
-  const body = marked.parse(doc.getText());
+  let body;
+  try {
+    body = marked.parse(doc.getText());
+  } catch (err) {
+    vscode.window.showErrorMessage(`GHMD: render failed — ${err.message}`);
+    return;
+  }
 
   const mode = activeTheme;
   const isDark = mode === 'dark';

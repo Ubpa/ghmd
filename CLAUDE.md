@@ -35,7 +35,9 @@ node serve.mjs --init             # download katex+mermaid for offline mode
 
 - The extension reads `src/ui.css` and `src/toc.js` from `path.join(__dirname, '..', 'src', ...)` because `__dirname` is `dist/` after bundling. There's a regression test for this.
 - The `slugify()` function is duplicated in both entry points (they need identical heading anchors but share no importable module).
-- Theme state: the server uses `localStorage`, the extension uses a `panelThemes` Map keyed by document URI and round-trips theme changes via `postMessage`.
+- Theme state: the server uses `localStorage`, the extension uses a module-level `activeTheme` variable and round-trips theme changes via `postMessage`.
+- Marked plugins are used for all GitHub-supported features: `marked-alert`, `marked-footnote`, `marked-frontmatter`, `marked-highlight`, `marked-emoji` (with gemoji), `marked-linkify-it`. Custom renderer only handles mermaid, math, and diff blocks.
+- The code renderer returns `false` for non-special languages, letting `marked-highlight` handle them.
 - `katex` and `mermaid` are `optionalDependencies` — the standalone server works without them (falls back to CDN), and `npm install` won't fail if they can't be built.
 
 ## Testing

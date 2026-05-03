@@ -6,7 +6,17 @@ import { execSync } from 'child_process';
 import { Marked } from 'marked';
 import markedAlert from 'marked-alert';
 import markedFootnote from 'marked-footnote';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { frontmatterExtension } = require('./src/frontmatter.cjs');
+import { markedHighlight } from 'marked-highlight';
+import { markedEmoji } from 'marked-emoji';
+import markedLinkifyIt from 'marked-linkify-it';
 import hljs from 'highlight.js';
+import { gemoji } from 'gemoji';
+
+const emojiMap = {};
+gemoji.forEach(e => e.names.forEach(n => { emojiMap[n] = e.emoji; }));
 
 const __dir = path.dirname(new URL(import.meta.url).pathname);
 
@@ -35,8 +45,19 @@ function slugify(text) {
 
 // ── Markdown pipeline ──
 const marked = new Marked();
+// frontmatter MUST be registered before footnote — reverse order crashes on files with both
+marked.use({ extensions: [frontmatterExtension] });
 marked.use(markedAlert());
 marked.use(markedFootnote());
+marked.use(markedHighlight({
+  langPrefix: 'hljs language-',
+  highlight(code, lang) {
+    if (lang && hljs.getLanguage(lang)) return hljs.highlight(code, { language: lang }).value;
+    return code;
+  }
+}));
+marked.use(markedEmoji({ emojis: emojiMap }));
+marked.use(markedLinkifyIt());
 marked.use({
   renderer: {
     heading({ text, depth }) {
@@ -54,10 +75,7 @@ marked.use({
         }).join('\n');
         return `<pre><code class="language-diff">${lines}</code></pre>`;
       }
-      if (lang && hljs.getLanguage(lang)) {
-        return `<pre><code class="hljs language-${lang}">${hljs.highlight(text, { language: lang }).value}</code></pre>`;
-      }
-      return `<pre><code>${escHtml(text)}</code></pre>`;
+      return false;
     }
   }
 });
@@ -65,6 +83,7 @@ marked.use({
 function escHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+
 
 // ── Shared UI (single source of truth) ──
 const uiCss  = fs.readFileSync(new URL('./src/ui.css', import.meta.url).pathname, 'utf8');

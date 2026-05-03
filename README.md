@@ -25,10 +25,13 @@
 | GitHub Alerts | `> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`, `> [!WARNING]`, `> [!CAUTION]` |
 | Mermaid diagrams | ` ```mermaid ` (flowchart, sequence, gantt, class, state, ER, pie, git) |
 | LaTeX math | `$...$` inline, `$$...$$` block |
-| Code highlighting | ` ```lang ` with highlight.js |
+| Code highlighting | ` ```lang ` via marked-highlight + highlight.js |
 | Diff highlighting | ` ```diff ` with `+`/`-` lines |
 | Collapsible sections | `<details>` / `<summary>` |
 | Footnotes | `[^label]` |
+| YAML front matter | `---` metadata rendered as table |
+| Emoji shortcodes | `:sparkles:` → ✨ (full GitHub set via gemoji) |
+| Auto-linked URLs | Bare URLs become clickable links |
 | Task lists | `- [x]` / `- [ ]` |
 | Keyboard keys | `<kbd>Cmd</kbd>` |
 | Sub/superscript | `<sub>` / `<sup>` |
@@ -108,8 +111,8 @@ flowchart LR
 
 Both entry points share the same pipeline:
 
-1. **marked** parses GFM with alert and footnote plugins
-2. **highlight.js** handles code syntax highlighting
+1. **marked** parses GFM with plugins: alerts, footnotes, front matter, emoji, auto-linking, syntax highlighting
+2. **marked-highlight** + **highlight.js** handle code syntax highlighting
 3. **github-markdown-css** provides GitHub's exact styling
 4. **KaTeX** renders math client-side
 5. **Mermaid** renders diagrams client-side
