@@ -50,21 +50,39 @@ flowchart LR
 
 ## P1 — Should Have
 
-### Image Paste
-
-- [ ] <kbd>Cmd</kbd>+<kbd>V</kbd> pastes clipboard image into markdown
-- [ ] Save image to configurable folder (default: `./assets/`)
-- [ ] Insert `![](./assets/image-name.png)` at cursor
-- [ ] Generate unique filenames (timestamp-based)
-- [ ] Support PNG and JPEG from clipboard
-
 ### Preview Zoom
 
-- [ ] <kbd>Cmd</kbd>+<kbd>=</kbd> zoom in
-- [ ] <kbd>Cmd</kbd>+<kbd>-</kbd> zoom out
-- [ ] <kbd>Cmd</kbd>+<kbd>0</kbd> reset zoom
-- [ ] Persist zoom level per session
-- [ ] Apply CSS `transform: scale()` on `.ghmd-wrapper`
+- [ ] <kbd>Cmd</kbd>+<kbd>=</kbd> / <kbd>Cmd</kbd>+<kbd>-</kbd> / <kbd>Cmd</kbd>+<kbd>0</kbd> to zoom in / out / reset
+- [ ] Persist zoom level across re-renders (via `acquireVsCodeApi().getState()`)
+- [ ] Webview receives `postMessage` from keybinding commands
+
+**Implementation plan:**
+
+The zoom is purely client-side CSS. No rendering pipeline changes.
+
+| Component | What to do |
+|-----------|-----------|
+| `package.json` | Add 3 commands: `ghmd.zoomIn`, `ghmd.zoomOut`, `ghmd.zoomReset` with keybindings |
+| `src/extension.cjs` | Register commands → `postMessage({ type: 'zoom', delta })` to webview |
+| Webview JS (inline) | Listen for zoom messages, apply `document.body.style.zoom` or CSS `transform: scale()`, persist via `vscode.getState()` / `vscode.setState()` |
+| `src/ui.css` | No changes needed — `zoom` property scales everything including fonts |
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant E as Extension Host
+    participant W as Webview
+
+    U->>E: Cmd+= (keybinding)
+    E->>E: ghmd.zoomIn command
+    E->>W: postMessage("zoom", +10)
+    W->>W: currentZoom += 10
+    W->>W: document.body.style.zoom = currentZoom + "%"
+    W->>W: vscode.setState({zoom: currentZoom})
+```
+
+> [!NOTE]
+> Use `document.body.style.zoom` (not CSS `transform: scale()`) — zoom reflows layout and adjusts scroll position correctly, while scale doesn't.
 
 ### Open in Browser
 
@@ -128,6 +146,7 @@ flowchart LR
 | Wiki links / CriticMarkup | Tiny user base |
 | 17+ preview themes | GHMD's value IS GitHub fidelity |
 | Parser extension hooks | Extensibility for extensibility's sake |
+| Image paste from clipboard | VS Code has built-in paste image support since 1.79 |
 | Image upload to imgur/sm.ms | Separate tool territory |
 | Custom editor registration | Too invasive for a previewer |
 | Export (HTML/PDF/Word) | Use browser print or Pandoc directly |
@@ -147,10 +166,9 @@ gantt
     v0.2 release           :milestone, after a1, 0d
 
     section v0.3 — Productivity
-    Image paste           :b1, 2026-05-05, 5d
-    Preview zoom          :b2, 2026-05-05, 2d
-    Open in browser       :b3, after b1, 3d
-    v0.3 release           :milestone, after b3, 0d
+    Preview zoom          :b1, 2026-05-05, 1d
+    Open in browser       :b2, after b1, 3d
+    v0.3 release           :milestone, after b2, 0d
 
     section v0.4 — Polish
     GraphViz support      :c1, after b3, 5d
@@ -171,7 +189,6 @@ gantt
 
 ### v0.3 — Productivity
 
-- [ ] Image paste from clipboard
 - [ ] Preview zoom controls
 - [ ] Open current file in browser via `serve.mjs`
 - [ ] Tests for new features
