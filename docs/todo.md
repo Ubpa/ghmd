@@ -46,29 +46,6 @@ flowchart LR
 > [!NOTE]
 > Editor scroll is instant (VS Code API limitation — `revealRange` has no smooth scroll). Preview scroll is smooth (`scrollIntoView` with `behavior: 'smooth'`).
 
-### Export to HTML
-
-- [ ] Command: `GHMD: Export to HTML`
-- [ ] Self-contained single file (all CSS/JS inlined)
-- [ ] Preserve current theme (light/dark)
-- [ ] Include KaTeX CSS + fonts as base64
-- [ ] Include Mermaid JS (or pre-render SVGs)
-- [ ] Output to same directory as source `.md`
-
-**Approach:** Reuse existing `html()` generation from `serve.mjs`. Strip live-reload script, inline all assets.
-
-### Export to PDF
-
-- [ ] Command: `GHMD: Export to PDF`
-- [ ] Use Puppeteer/Chrome headless for rendering
-- [ ] Auto-detect Chrome path (macOS, Linux, Windows)
-- [ ] Configurable page size (A4 default) and margins
-- [ ] Support `@media print` CSS for page breaks
-- [ ] Graceful error if Chrome not found
-
-> [!NOTE]
-> PDF export depends on HTML export — build HTML export first, then pipe through Puppeteer.
-
 ---
 
 ## P1 — Should Have
@@ -153,6 +130,7 @@ flowchart LR
 | Parser extension hooks | Extensibility for extensibility's sake |
 | Image upload to imgur/sm.ms | Separate tool territory |
 | Custom editor registration | Too invasive for a previewer |
+| Export (HTML/PDF/Word) | Use browser print or Pandoc directly |
 
 ---
 
@@ -166,13 +144,11 @@ gantt
 
     section v0.2 — Core
     Scroll sync           :done, a1, 2026-05-03, 2d
-    Export to HTML         :a2, 2026-05-05, 3d
-    Export to PDF          :a3, after a2, 4d
-    v0.2 release           :milestone, after a3, 0d
+    v0.2 release           :milestone, after a1, 0d
 
     section v0.3 — Productivity
-    Image paste           :b1, after a3, 5d
-    Preview zoom          :b2, after a3, 2d
+    Image paste           :b1, 2026-05-05, 5d
+    Preview zoom          :b2, 2026-05-05, 2d
     Open in browser       :b3, after b1, 3d
     v0.3 release           :milestone, after b3, 0d
 
@@ -191,9 +167,6 @@ gantt
 
 - [x] Scroll sync (editor → preview)
 - [x] Scroll sync (preview → editor)
-- [ ] Export to self-contained HTML
-- [ ] Export to PDF via Chrome headless
-- [ ] Tests for new features
 - [x] Update README
 
 ### v0.3 — Productivity
