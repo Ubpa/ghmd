@@ -315,16 +315,40 @@ ${body}
     throwOnError: false,
   });
 
-  function fixMermaidSvgSizes() {
+  function addSvgSliders() {
     document.querySelectorAll('pre.mermaid svg').forEach(svg => {
-      if (_zoom === 100) { svg.style.width = ''; svg.style.maxWidth = ''; return; }
+      if (svg._hasSlider) return;
+      svg._hasSlider = true;
+      const pre = svg.closest('pre');
       const vb = svg.getAttribute('viewBox');
       if (!vb) return;
-      const w = parseFloat(vb.split(' ')[2]);
-      if (w) { svg.style.width = w + 'px'; svg.style.maxWidth = 'none'; }
+      const intrinsicW = parseFloat(vb.split(' ')[2]);
+      if (!intrinsicW) return;
+
+      const wrap = document.createElement('div');
+      wrap.className = 'mermaid-wrap';
+      pre.parentNode.insertBefore(wrap, pre);
+      wrap.appendChild(pre);
+      const bar = document.createElement('div');
+      bar.className = 'svg-slider';
+      bar.innerHTML = '<button class="zoom-btn svg-minus">−</button><input type="range" min="20" max="300" value="100"><button class="zoom-btn svg-plus">+</button><button class="zoom-btn svg-reset">↺</button><span>100%</span>';
+      wrap.appendChild(bar);
+
+      const slider = bar.querySelector('input');
+      const label = bar.querySelector('span');
+      function setSvgWidth(pct) {
+        slider.value = pct;
+        label.textContent = pct + '%';
+        if (pct === 100) { svg.style.width = ''; svg.style.maxWidth = ''; }
+        else { svg.style.width = (intrinsicW * pct / 100) + 'px'; svg.style.maxWidth = 'none'; }
+      }
+      slider.addEventListener('input', () => setSvgWidth(parseInt(slider.value)));
+      bar.querySelector('.svg-minus').addEventListener('click', () => setSvgWidth(parseInt(slider.value) - 10));
+      bar.querySelector('.svg-plus').addEventListener('click', () => setSvgWidth(parseInt(slider.value) + 10));
+      bar.querySelector('.svg-reset').addEventListener('click', () => setSvgWidth(100));
     });
   }
-  new MutationObserver(fixMermaidSvgSizes).observe(document.querySelector('.ghmd-wrapper'), { childList: true, subtree: true });
+  new MutationObserver(addSvgSliders).observe(document.querySelector('.ghmd-wrapper'), { childList: true, subtree: true });
 
   const initTheme = document.documentElement.getAttribute('data-theme');
   mermaid.initialize({ startOnLoad: true, theme: initTheme === 'dark' ? 'dark' : 'default' });
@@ -336,7 +360,6 @@ ${body}
   const wrapper = document.querySelector('.ghmd-wrapper');
   let _zoom = (vscode.getState() || {}).zoom || 100;
   wrapper.style.zoom = _zoom + '%';
-  if (_zoom !== 100) fixMermaidSvgSizes();
 
   // Zoom slider UI
   const zoomBar = document.createElement('div');
@@ -344,6 +367,7 @@ ${body}
   zoomBar.innerHTML = '<button class="zoom-btn" id="zoomOutBtn">−</button>'
     + '<input type="range" id="zoomSlider" min="30" max="300" step="10">'
     + '<button class="zoom-btn" id="zoomInBtn">+</button>'
+    + '<button class="zoom-btn" id="zoomResetBtn">↺</button>'
     + '<span id="zoomLabel"></span>';
   document.body.appendChild(zoomBar);
   const zoomSlider = document.getElementById('zoomSlider');
@@ -356,7 +380,6 @@ ${body}
     zoomSlider.value = _zoom;
     zoomLabel.textContent = _zoom + '%';
     vscode.setState({ ...(vscode.getState() || {}), zoom: _zoom });
-    fixMermaidSvgSizes();
     showZoomBar();
   }
 
@@ -371,6 +394,14 @@ ${body}
   zoomSlider.addEventListener('input', () => applyZoom(parseInt(zoomSlider.value)));
   document.getElementById('zoomOutBtn').addEventListener('click', () => applyZoom(_zoom - 10));
   document.getElementById('zoomInBtn').addEventListener('click', () => applyZoom(_zoom + 10));
+  document.getElementById('zoomResetBtn').addEventListener('click', () => applyZoom(100));
+
+  // Pinch-to-zoom: trackpad pinch fires wheel events with ctrlKey in Chromium
+  window.addEventListener('wheel', e => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    applyZoom(_zoom + (e.deltaY < 0 ? 5 : -5));
+  }, { passive: false });
 
   window.addEventListener('message', e => {
     if (e.data.type === 'scrollToLine') scrollToLine(e.data.line);

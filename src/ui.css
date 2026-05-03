@@ -116,6 +116,21 @@ html[data-theme="dark"]  kbd { color: #c9d1d9; background: #161b22; border: 1px 
 pre.mermaid { background: transparent; border: none; text-align: center; overflow-x: auto; }
 pre.mermaid svg { max-width: none; }
 
+/* Per-SVG width slider */
+.mermaid-wrap { position: relative; }
+.svg-slider {
+  position: absolute; top: 4px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 6px; padding: 3px 8px;
+  border-radius: 6px; font-size: 11px;
+  opacity: 0; transition: opacity 0.2s; pointer-events: none;
+  backdrop-filter: blur(8px);
+}
+.mermaid-wrap:hover .svg-slider { opacity: 1; pointer-events: auto; }
+html[data-theme="light"] .svg-slider { background: rgba(246,248,250,0.85); border: 1px solid rgba(208,215,222,0.5); color: #57606a; }
+html[data-theme="dark"] .svg-slider { background: rgba(33,38,45,0.85); border: 1px solid rgba(48,54,61,0.5); color: #8b949e; }
+.svg-slider input[type="range"] { width: 120px; cursor: pointer; }
+.svg-slider span { min-width: 36px; text-align: center; font-size: 12px; }
+
 /* Zoom bar */
 .zoom-bar {
   position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 999;
