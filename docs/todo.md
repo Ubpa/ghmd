@@ -50,39 +50,17 @@ flowchart LR
 
 ## P1 — Should Have
 
-### Preview Zoom
+### Preview Zoom — Done
 
-- [ ] <kbd>Cmd</kbd>+<kbd>=</kbd> / <kbd>Cmd</kbd>+<kbd>-</kbd> / <kbd>Cmd</kbd>+<kbd>0</kbd> to zoom in / out / reset
-- [ ] Persist zoom level across re-renders (via `acquireVsCodeApi().getState()`)
-- [ ] Webview receives `postMessage` from keybinding commands
-
-**Implementation plan:**
-
-The zoom is purely client-side CSS. No rendering pipeline changes.
-
-| Component | What to do |
-|-----------|-----------|
-| `package.json` | Add 3 commands: `ghmd.zoomIn`, `ghmd.zoomOut`, `ghmd.zoomReset` with keybindings |
-| `src/extension.cjs` | Register commands → `postMessage({ type: 'zoom', delta })` to webview |
-| Webview JS (inline) | Listen for zoom messages, apply `document.body.style.zoom` or CSS `transform: scale()`, persist via `vscode.getState()` / `vscode.setState()` |
-| `src/ui.css` | No changes needed — `zoom` property scales everything including fonts |
-
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant E as Extension Host
-    participant W as Webview
-
-    U->>E: Cmd+= (keybinding)
-    E->>E: ghmd.zoomIn command
-    E->>W: postMessage("zoom", +10)
-    W->>W: currentZoom += 10
-    W->>W: document.body.style.zoom = currentZoom + "%"
-    W->>W: vscode.setState({zoom: currentZoom})
-```
+- [x] <kbd>Cmd</kbd>+<kbd>=</kbd> / <kbd>Cmd</kbd>+<kbd>-</kbd> / <kbd>Cmd</kbd>+<kbd>0</kbd> to zoom in / out / reset
+- [x] Pinch-to-zoom gesture (trackpad two-finger)
+- [x] Zoom slider bar (−/slider/+/↺/%) auto-shows on zoom, auto-hides after 2s
+- [x] Zoom applied to `.ghmd-wrapper` only — toolbar, TOC, sliders stay fixed size
+- [x] Persist zoom level via `vscode.getState()` / `vscode.setState()`
+- [x] Per-SVG width slider on mermaid diagrams (hover to show, 20%–300%)
 
 > [!NOTE]
-> Use `document.body.style.zoom` (not CSS `transform: scale()`) — zoom reflows layout and adjusts scroll position correctly, while scale doesn't.
+> Zoom is applied to `.ghmd-wrapper` (not `document.body`) so that the toolbar, TOC panel, and zoom bar stay at their natural size. Mermaid SVGs get individual width sliders because they size to their container — page zoom alone doesn't help.
 
 ### Open in Browser
 
@@ -166,8 +144,8 @@ gantt
     v0.2 release           :milestone, after a1, 0d
 
     section v0.3 — Productivity
-    Preview zoom          :b1, 2026-05-05, 1d
-    Open in browser       :b2, after b1, 3d
+    Preview zoom          :done, b1, 2026-05-04, 1d
+    Open in browser       :b2, 2026-05-05, 3d
     v0.3 release           :milestone, after b2, 0d
 
     section v0.4 — Polish
@@ -189,7 +167,7 @@ gantt
 
 ### v0.3 — Productivity
 
-- [ ] Preview zoom controls
+- [x] Preview zoom (page zoom + per-SVG slider + pinch gesture)
 - [ ] Open current file in browser via `serve.mjs`
 - [ ] Tests for new features
 - [ ] Update README
