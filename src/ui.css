@@ -33,14 +33,14 @@ html[data-theme="dark"]  .theme-toggle .icon-sun  { display: block; }
   position: fixed; top: 64px; right: 16px; z-index: 998;
   width: 260px; max-height: calc(100vh - 80px);
   overflow-y: auto;
-  background: rgba(246,248,250,0.55); border: 1px solid rgba(208,215,222,0.6); border-radius: 8px;
+  background: rgba(246,248,250,0.3); border: 1px solid rgba(208,215,222,0.4); border-radius: 8px;
   padding: 12px 0; font-size: 0.8em; line-height: 1.5;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(4px);
   display: none;
 }
 .toc-panel.open { display: block; }
-html[data-theme="dark"] .toc-panel { background: rgba(22,27,34,0.55); border-color: rgba(48,54,61,0.6); box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+html[data-theme="dark"] .toc-panel { background: rgba(22,27,34,0.3); border-color: rgba(48,54,61,0.4); box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
 
 .toc-row { display: flex; align-items: center; }
 .toc-row:hover { background: rgba(0,0,0,0.04); }
