@@ -85,9 +85,7 @@ function openPreview(context, toSide) {
     {
       enableScripts: true,
       retainContextWhenHidden: true,
-      localResourceRoots: [
-        vscode.Uri.file(path.join(context.extensionPath, 'vendor')),
-      ],
+      localResourceRoots: [],
     },
   );
 
@@ -195,10 +193,6 @@ function escHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function vendor(context, ...segments) {
-  return fs.readFileSync(path.join(context.extensionPath, 'vendor', ...segments), 'utf8');
-}
-
 function updatePreview(panel, doc, context) {
   const text = doc.getText();
   const marked = getMarked(text);
@@ -213,16 +207,13 @@ function updatePreview(panel, doc, context) {
   const mode = activeTheme;
   const isDark = mode === 'dark';
 
-  const ghCss   = vendor(context, 'css', isDark ? 'github-markdown-dark.css' : 'github-markdown-light.css');
-  const hljsCss = vendor(context, 'css', isDark ? 'hljs-dark.css' : 'hljs-light.css');
+  const ghCdn = isDark
+    ? 'https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown-dark.css'
+    : 'https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown-light.css';
+  const hljsCdn = isDark
+    ? 'https://cdn.jsdelivr.net/npm/highlight.js/styles/github-dark.css'
+    : 'https://cdn.jsdelivr.net/npm/highlight.js/styles/github.css';
 
-  const katexFontsUri = panel.webview.asWebviewUri(
-    vscode.Uri.file(path.join(context.extensionPath, 'vendor', 'katex', 'fonts'))
-  );
-  const katexCssLocal        = vendor(context, 'katex', 'katex.min.css');
-  const katexJsLocal         = vendor(context, 'katex', 'katex.min.js');
-  const katexAutoRenderLocal = vendor(context, 'katex', 'auto-render.min.js');
-  const mermaidJsLocal       = vendor(context, 'mermaid.min.js');
 
   const cacheKey = body + mode;
   if (cacheKey === lastRenderedHtml) return;
@@ -237,8 +228,8 @@ function updatePreview(panel, doc, context) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="${isDark ? 'dark' : 'only light'}">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' https://cdn.jsdelivr.net; script-src 'nonce-${nonce}' https://cdn.jsdelivr.net; img-src ${panel.webview.cspSource} https: data:; font-src ${panel.webview.cspSource} https://cdn.jsdelivr.net;">
-<style>${ghCss}</style>
-<style>${hljsCss}</style>
+<link rel="stylesheet" href="${ghCdn}">
+<link rel="stylesheet" href="${hljsCdn}">
 <style>
   /* VS Code-specific overrides; shared UI is in src/ui.css */
   /* Match github-markdown-css body backgrounds so VS Code's dark body doesn't bleed through padding */
@@ -255,23 +246,11 @@ function updatePreview(panel, doc, context) {
   .toc-panel { top: 56px; right: 12px; max-height: calc(100vh - 70px); }
 </style>
 <style>${uiCss}</style>
-<!-- KaTeX: CDN first, local fallback -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css"
-      onerror="document.getElementById('katex-css-local').disabled=false; this.remove();">
-<style id="katex-css-local" disabled>${katexCssLocal.replace(/url\(fonts\//g, `url(${katexFontsUri}/`)}</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css">
 
-<script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js"
-        onerror="this.__failed=true"></script>
-<script nonce="${nonce}">if(!window.katex){${katexJsLocal}}</script>
-
-<script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js"
-        onerror="this.__failed=true"></script>
-<script nonce="${nonce}">if(!window.renderMathInElement){${katexAutoRenderLocal}}</script>
-
-<!-- Mermaid: CDN first, local fallback -->
-<script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"
-        onerror="this.__failed=true"></script>
-<script nonce="${nonce}">if(!window.mermaid){${mermaidJsLocal}}</script>
+<script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js"></script>
+<script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js"></script>
+<script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
 </head>
 <body>
 <div class="toolbar">

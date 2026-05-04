@@ -9,13 +9,13 @@
 | Dimension | GHMD | MPE |
 |-----------|:----:|:---:|
 | GitHub rendering fidelity | Pixel-perfect | Approximate theme |
-| VSIX size | **1.5 MB** | ~50 MB |
+| VSIX size | **~420 KB** | ~50 MB |
 | Startup time | Instant | Noticeable lag |
 | Zero-config experience | Yes | Requires setup |
 | Standalone server mode | Yes | No |
 | Diagram types | 1 (Mermaid) | 12+ |
 | Export formats | None | 8 paths (PDF, HTML, ePub...) |
-| Scroll sync | No | Bidirectional |
+| Scroll sync | Bidirectional | Bidirectional |
 | Code execution | No | Yes (Python, bash, etc.) |
 | Customization depth | Minimal | Extreme (themes, parser hooks, CSS) |
 
@@ -57,9 +57,9 @@
 |---------|:----:|:---:|:--------:|
 | Live update on edit | Yes | Yes (configurable debounce) | -- |
 | Follow active editor | Yes | Yes ("Single Preview" mode) | -- |
-| Scroll sync (editor ↔ preview) | **No** | Bidirectional | **High** |
-| Image paste from clipboard | **No** | Yes (with upload) | **High** |
-| Preview zoom in/out | **No** | Yes (<kbd>Cmd</kbd>+<kbd>=</kbd>/<kbd>-</kbd>) | Medium |
+| Scroll sync (editor ↔ preview) | Bidirectional | Bidirectional | -- |
+| Image paste from clipboard | No (VS Code built-in since 1.79) | Yes (with upload) | Skip |
+| Preview zoom in/out | Yes (<kbd>Cmd</kbd>+<kbd>=</kbd>/<kbd>-</kbd>, pinch, slider) | Yes (<kbd>Cmd</kbd>+<kbd>=</kbd>/<kbd>-</kbd>) | -- |
 | Insert table/pagebreak commands | No | Yes | Low |
 | Auto-show on markdown open | No | Yes (configurable) | Low |
 | Graph view (doc relationships) | No | Yes | Skip |
@@ -96,8 +96,8 @@ flowchart LR
     subgraph GHMD["GHMD (lean)"]
         M1[marked] --> H1[highlight.js]
         H1 --> HTML1["Single HTML output"]
-        K1[KaTeX CDN/local] -.-> HTML1
-        MM1[Mermaid CDN/local] -.-> HTML1
+        K1[KaTeX CDN] -.-> HTML1
+        MM1[Mermaid CDN] -.-> HTML1
     end
 
     subgraph MPE["MPE (heavy)"]
@@ -160,7 +160,7 @@ GHMD's defensible advantages that MPE cannot easily replicate:
 | Advantage | Why it's hard to copy |
 |-----------|----------------------|
 | Pixel-perfect GitHub CSS | MPE uses approximate themes; matching GitHub exactly requires using `github-markdown-css` directly |
-| 1.5 MB install | MPE's crossnote engine + 12 diagram libs make it fundamentally heavy |
+| ~420 KB install | MPE's crossnote engine + 12 diagram libs make it fundamentally heavy |
 | Standalone server | MPE is VS Code-only; GHMD works in any browser |
 | Zero config | MPE has 50+ settings because its features demand them |
 | Fast startup | Less code = less to load. Simple architecture wins on performance |

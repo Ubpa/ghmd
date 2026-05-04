@@ -9,7 +9,7 @@ ghmd is a GitHub-style Markdown previewer that ships as both a standalone HTTP s
 ## Commands
 
 ```bash
-npm run build        # vendor assets + esbuild bundle → dist/extension.js
+npm run build        # esbuild bundle → dist/extension.js
 npm run dev          # same but with sourcemaps (for F5 debugging)
 npm run package      # build + create .vsix
 npm test             # build + run VS Code e2e tests (headless)
@@ -23,13 +23,13 @@ node serve.mjs --init             # download katex+mermaid for offline mode
 **Two entry points, one rendering pipeline:**
 
 - `serve.mjs` — standalone Node HTTP server (ESM). Reads markdown, serves a full HTML page with live-reload polling (`/__poll`). KaTeX/Mermaid load from CDN unless `--init` was run (then local from `node_modules/`).
-- `src/extension.cjs` — VS Code extension (CJS, bundled by esbuild into `dist/extension.js`). Uses webview panels with the same markdown pipeline. KaTeX/Mermaid use CDN-first with local fallback from `vendor/`.
+- `src/extension.cjs` — VS Code extension (CJS, bundled by esbuild into `dist/extension.js`). Uses webview panels with the same markdown pipeline. All external assets (KaTeX, Mermaid, highlight.js CSS, github-markdown-css) load from CDN.
 
 **Shared UI (SSOT):** `src/ui.css` and `src/toc.js` are read at runtime by both entry points via `fs.readFileSync` and inlined into the HTML. They are not bundled by esbuild — they must stay as separate files in `src/`.
 
-**Vendor assets:** `scripts/vendor.mjs` copies dist files from `node_modules/` into `vendor/` (CSS, KaTeX JS/CSS/fonts, Mermaid). The `vendor/` directory is gitignored but included in the .vsix package.
+**CDN assets:** The extension loads all external CSS and JS from `cdn.jsdelivr.net` at runtime — no vendored files are shipped. `scripts/vendor.mjs` is a no-op kept so `npm run build` doesn't break.
 
-**Build output:** `dist/extension.js` is the esbuild bundle (CJS, minified, `vscode` externalized). Also gitignored.
+**Build output:** `dist/extension.js` is the esbuild bundle (CJS, minified, `vscode` externalized). Gitignored.
 
 ## Key Design Decisions
 

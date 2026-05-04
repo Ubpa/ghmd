@@ -5,3 +5,5 @@ src/extension.cjs
 scripts/**
 node_modules/**
 serve.mjs
+docs/**
+test/**

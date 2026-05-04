@@ -2,7 +2,7 @@
 
 **Pixel-perfect GitHub rendering, locally.** Works as a standalone server (browser) and a VS Code extension.
 
-![Version](https://img.shields.io/badge/version-0.1.0-blue) ![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen?logo=node.js) ![License](https://img.shields.io/badge/license-MIT-green) ![Size](https://img.shields.io/badge/vsix-1.5MB-blue)
+![Version](https://img.shields.io/badge/version-0.1.0-blue) ![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen?logo=node.js) ![License](https://img.shields.io/badge/license-MIT-green) ![Size](https://img.shields.io/badge/vsix-~420KB-blue)
 
 ---
 
@@ -12,7 +12,7 @@
 |---|:---:|:---:|:---:|
 | GitHub-accurate rendering | Yes | No | Approximate |
 | Alerts, footnotes, math, mermaid | All | None | All |
-| Install size | 1.5 MB | Built-in | ~50 MB |
+| Install size | ~420 KB | Built-in | ~50 MB |
 | Config required | Zero | Zero | Extensive |
 | Standalone server | Yes | No | No |
 
@@ -125,7 +125,7 @@ Both entry points share the same pipeline:
 6. **Mermaid** renders diagrams client-side
 
 > [!NOTE]
-> The standalone server loads KaTeX/Mermaid from CDN by default (or locally after `--init`). The VS Code extension bundles everything into a 1.5 MB `.vsix`.
+> Both entry points load KaTeX, Mermaid, highlight.js CSS, and github-markdown-css from CDN. The standalone server also supports offline mode via `--init`. The VS Code extension ships as a ~420 KB `.vsix` with no vendored assets.
 
 ---
 
@@ -149,9 +149,8 @@ ghmd/
     extension.cjs       VS Code extension source (CJS, bundled by esbuild)
     ui.css              Shared UI styles (SSOT for both entry points)
     toc.js              Shared TOC logic (SSOT for both entry points)
-  scripts/vendor.mjs    Copies dist files from node_modules → vendor/
+  scripts/vendor.mjs    No-op (all assets load from CDN)
   dist/                 Bundled extension output (gitignored)
-  vendor/               Runtime assets for extension (gitignored)
   docs/                 Research and roadmap
 ```
 

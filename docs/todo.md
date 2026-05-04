@@ -186,7 +186,7 @@ gantt
 
 | Metric | Target |
 |--------|--------|
-| VSIX size | < 3 MB |
+| VSIX size | < 500 KB |
 | Time to first preview | < 500ms |
 | Scroll sync latency | < 50ms |
 | Config options | < 10 |
