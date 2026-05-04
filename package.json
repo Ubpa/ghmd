@@ -2,7 +2,7 @@
   "name": "ghmd",
   "displayName": "GHMD — GitHub Markdown Preview",
   "description": "GitHub-style Markdown preview: standalone server + VS Code extension",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "publisher": "ubpa",
   "bin": {
@@ -16,7 +16,8 @@
     "Other"
   ],
   "activationEvents": [
-    "onLanguage:markdown"
+    "onLanguage:markdown",
+    "workspaceContains:**/*.md"
   ],
   "contributes": {
     "commands": [
@@ -46,7 +47,7 @@
     "menus": {
       "editor/title": [
         {
-          "when": "resourceLangId == markdown",
+          "when": "resourceExtname == .md",
           "command": "ghmd.openPreviewToSide",
           "alt": "ghmd.openPreview",
           "group": "navigation"
@@ -55,11 +56,11 @@
       "commandPalette": [
         {
           "command": "ghmd.openPreview",
-          "when": "resourceLangId == markdown"
+          "when": "resourceExtname == .md"
         },
         {
           "command": "ghmd.openPreviewToSide",
-          "when": "resourceLangId == markdown"
+          "when": "resourceExtname == .md"
         }
       ]
     },
@@ -68,13 +69,13 @@
         "command": "ghmd.openPreview",
         "key": "shift+ctrl+v",
         "mac": "shift+cmd+v",
-        "when": "resourceLangId == markdown"
+        "when": "resourceExtname == .md"
       },
       {
         "command": "ghmd.openPreviewToSide",
         "key": "ctrl+k v",
         "mac": "cmd+k v",
-        "when": "resourceLangId == markdown"
+        "when": "resourceExtname == .md"
       },
       {
         "command": "ghmd.zoomIn",
