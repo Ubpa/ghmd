@@ -2,7 +2,7 @@
 
 **Pixel-perfect GitHub rendering, locally.** Works as a standalone server (browser) and a VS Code extension.
 
-![Version](https://img.shields.io/badge/version-0.1.0-blue) ![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen?logo=node.js) ![License](https://img.shields.io/badge/license-MIT-green) ![Size](https://img.shields.io/badge/vsix-~420KB-blue)
+![Version](https://img.shields.io/badge/version-0.1.1-blue) ![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen?logo=node.js) ![License](https://img.shields.io/badge/license-MIT-green) ![Size](https://img.shields.io/badge/vsix-~420KB-blue)
 
 ---
 
@@ -79,8 +79,11 @@ node serve.mjs README.md              # now fully offline
 
 ```bash
 npm run package                        # build + create .vsix
-code --install-extension ghmd-0.1.0.vsix
+code --install-extension ghmd-*.vsix --extensions-dir ~/.vscode/extensions
 ```
+
+> [!WARNING]
+> The `code` CLI may install to a different extensions directory than your editor loads from (e.g. `~/.cursor/extensions/` vs `~/.vscode/extensions/`). Use `--extensions-dir` to target the correct path. After installing, run **Cmd+Shift+P → Developer: Reload Window**.
 
 #### Keybindings
 
@@ -133,10 +136,13 @@ Both entry points share the same pipeline:
 
 ```bash
 npm install                            # install dependencies
-npm run build                          # bundle extension + vendor assets
+npm run build                          # bundle extension + server
 npm run dev                            # build with sourcemaps (F5 debugging)
+npm run typecheck                      # tsc type checking only
 npm run package                        # build + create .vsix
-npm test                               # run VS Code e2e tests (headless)
+npm test                               # build + VS Code e2e tests (headless)
+npx tsx test/unit/frontmatter.test.mts # frontmatter unit tests
+npx tsx test/unit/svg-slider.test.mts  # SVG slider unit tests
 ```
 
 <details>
@@ -144,14 +150,18 @@ npm test                               # run VS Code e2e tests (headless)
 
 ```
 ghmd/
-  serve.mjs             Standalone server (ESM, zero build step)
   src/
-    extension.cjs       VS Code extension source (CJS, bundled by esbuild)
-    ui.css              Shared UI styles (SSOT for both entry points)
-    toc.js              Shared TOC logic (SSOT for both entry points)
-  scripts/vendor.mjs    No-op (all assets load from CDN)
-  dist/                 Bundled extension output (gitignored)
-  docs/                 Research and roadmap
+    extension.ts        VS Code extension (bundled → dist/extension.cjs)
+    serve.mts           Standalone server (bundled → dist/serve.mjs)
+    frontmatter.ts      YAML front matter extension for marked
+    source-lines.ts     Injects data-source-line attrs for scroll sync
+    scroll-sync.js      Client-side bidirectional scroll sync
+    ui.css              Shared UI styles (read at runtime by both entry points)
+    toc.js              Shared TOC logic (read at runtime by both entry points)
+  test/
+    suite/              VS Code e2e tests (mocha + @vscode/test-electron)
+    unit/               Unit tests (run with tsx, no VS Code required)
+  dist/                 Build output (gitignored)
 ```
 
 </details>
