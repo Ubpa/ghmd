@@ -1,9 +1,14 @@
 .vscode/**
 .git/**
 *.vsix
-src/extension.cjs
+**/*.ts
+**/*.mts
 scripts/**
 node_modules/**
-serve.mjs
 docs/**
 test/**
+CLAUDE.md
+tsconfig.json
+!src/toc.js
+!src/scroll-sync.js
+!src/ui.css

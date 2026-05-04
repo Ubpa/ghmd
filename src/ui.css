@@ -14,11 +14,11 @@ html, body { margin: 0; padding: 0; }
   display: flex; flex-direction: row-reverse; gap: 6px;
 }
 .toolbar button {
-  width: 40px; height: 40px;
-  border: 1px solid rgba(208,215,222,0.6); border-radius: 8px;
+  width: 28px; height: 28px;
+  border: 1px solid rgba(208,215,222,0.6); border-radius: 6px;
   background: rgba(246,248,250,0.55); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  font-size: 20px; line-height: 1;
+  font-size: 14px; line-height: 1;
   transition: background 0.2s, border-color 0.2s;
   box-shadow: 0 1px 3px rgba(0,0,0,0.08);
   backdrop-filter: blur(8px);
@@ -30,7 +30,7 @@ html[data-theme="light"] .theme-toggle .icon-moon { display: block; }
 html[data-theme="dark"]  .theme-toggle .icon-sun  { display: block; }
 
 .toc-panel {
-  position: fixed; top: 64px; right: 16px; z-index: 998;
+  position: fixed; top: 52px; right: 16px; z-index: 998;
   width: 260px; max-height: calc(100vh - 80px);
   overflow-y: auto;
   background: rgba(246,248,250,0.3); border: 1px solid rgba(208,215,222,0.4); border-radius: 8px;

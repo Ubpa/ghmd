@@ -6,22 +6,19 @@ import { execSync } from 'child_process';
 import { Marked } from 'marked';
 import markedAlert from 'marked-alert';
 import markedFootnote from 'marked-footnote';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const { frontmatterExtension } = require('./src/frontmatter.cjs');
-const { sourceLines, applySourceLineWrappers } = require('./src/source-lines.cjs');
+import { frontmatterExtension } from './frontmatter.js';
+import { sourceLines, applySourceLineWrappers } from './source-lines.js';
 import { markedHighlight } from 'marked-highlight';
 import { markedEmoji } from 'marked-emoji';
 import markedLinkifyIt from 'marked-linkify-it';
 import hljs from 'highlight.js';
 import { gemoji } from 'gemoji';
 
-const emojiMap = {};
+const emojiMap: Record<string, string> = {};
 gemoji.forEach(e => e.names.forEach(n => { emojiMap[n] = e.emoji; }));
 
-const __dir = path.dirname(new URL(import.meta.url).pathname);
+const __dir = path.resolve(import.meta.dirname, '..');
 
-// ── --init: download katex + mermaid for offline use ──
 if (process.argv[2] === '--init') {
   console.log('Installing katex and mermaid for offline use...');
   execSync('npm install katex mermaid', { cwd: __dir, stdio: 'inherit' });
@@ -39,14 +36,16 @@ if (!file) {
 const port = parseInt(process.argv[3] || '6419');
 const absFile = path.resolve(file);
 
-function slugify(text) {
+function slugify(text: string): string {
   return text.replace(/<[^>]+>/g, '').trim()
     .toLowerCase().replace(/[^\w一-鿿\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
 }
 
-// ── Markdown pipeline ──
+function escHtml(s: string): string {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 const marked = new Marked();
-// frontmatter MUST be registered before footnote — reverse order crashes on files with both
 marked.use({ extensions: [frontmatterExtension] });
 marked.use(markedAlert());
 marked.use(markedFootnote());
@@ -81,17 +80,10 @@ marked.use({
   }
 });
 
-function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
+const uiCss  = fs.readFileSync(path.join(__dir, 'src', 'ui.css'), 'utf8');
+const tocJs  = fs.readFileSync(path.join(__dir, 'src', 'toc.js'), 'utf8');
+const scrollSyncJs = fs.readFileSync(path.join(__dir, 'src', 'scroll-sync.js'), 'utf8');
 
-
-// ── Shared UI (single source of truth) ──
-const uiCss  = fs.readFileSync(new URL('./src/ui.css', import.meta.url).pathname, 'utf8');
-const tocJs  = fs.readFileSync(new URL('./src/toc.js', import.meta.url).pathname, 'utf8');
-const scrollSyncJs = fs.readFileSync(new URL('./src/scroll-sync.js', import.meta.url).pathname, 'utf8');
-
-// ── CSS (always local — installed as core deps) ──
 const cssDir = path.dirname(new URL(import.meta.resolve('github-markdown-css')).pathname);
 const ghLightCss = fs.readFileSync(path.join(cssDir, 'github-markdown-light.css'), 'utf8');
 const ghDarkCss  = fs.readFileSync(path.join(cssDir, 'github-markdown-dark.css'), 'utf8');
@@ -100,8 +92,7 @@ const hljsDir = path.join(path.dirname(new URL(import.meta.resolve('highlight.js
 const hljsLightCss = fs.readFileSync(path.join(hljsDir, 'github.css'), 'utf8');
 const hljsDarkCss  = fs.readFileSync(path.join(hljsDir, 'github-dark.css'), 'utf8');
 
-// ── KaTeX + Mermaid: local if available, CDN fallback ──
-function tryRead(...segments) {
+function tryRead(...segments: string[]): string | null {
   try { return fs.readFileSync(path.join(__dir, 'node_modules', ...segments), 'utf8'); }
   catch { return null; }
 }
@@ -114,9 +105,9 @@ const mermaidJs = tryRead('mermaid', 'dist', 'mermaid.min.js');
 const offline = !!(katexCss && katexJs && katexAutoRenderJs && mermaidJs);
 const katexFontsDir = offline ? path.join(__dir, 'node_modules', 'katex', 'dist', 'fonts') : null;
 
-function katexBlock() {
+function katexBlock(): string {
   if (offline) {
-    return `<style>${katexCss.replace(/url\(fonts\//g, 'url(/__fonts/')}</style>
+    return `<style>${katexCss!.replace(/url\(fonts\//g, 'url(/__fonts/')}</style>
 <script>${katexJs}</script>
 <script>${katexAutoRenderJs}</script>`;
   }
@@ -125,30 +116,27 @@ function katexBlock() {
 <script src="https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js"></script>`;
 }
 
-function mermaidBlock() {
+function mermaidBlock(): string {
   if (offline) return `<script>${mermaidJs}</script>`;
   return `<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>`;
 }
 
-// ── Render ──
 let lastMtime = 0;
 let cachedBody = '';
 
-// Apply source-line wrappers once (they snapshot the current renderer)
 applySourceLineWrappers(marked);
 
-function render() {
+function render(): void {
   const mtime = fs.statSync(absFile).mtimeMs;
   if (mtime === lastMtime) return;
   lastMtime = mtime;
   const md = fs.readFileSync(absFile, 'utf8');
-  // Re-register walkTokens per render (needs fresh cursor for each markdown text)
   marked.use(sourceLines(md));
-  cachedBody = marked.parse(md);
+  cachedBody = marked.parse(md) as string;
   console.log(`[${new Date().toLocaleTimeString()}] rendered ${path.basename(absFile)}`);
 }
 
-function html(body) {
+function html(body: string): string {
   return `<!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
@@ -160,7 +148,6 @@ function html(body) {
 <style id="hljs-light">${hljsLightCss}</style>
 <style id="hljs-dark" disabled>${hljsDarkCss}</style>
 <style>
-  /* Page-specific overrides; shared UI is in src/ui.css */
   html[data-theme="light"] { background: #fff; color-scheme: light; }
   html[data-theme="dark"]  { background: #0d1117; color-scheme: dark; }
   .ghmd-wrapper { padding: 45px; }
@@ -204,7 +191,6 @@ ${body}
   function toggleTheme() {
     const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
     localStorage.setItem('ghmd-theme', next);
-    // Reset mermaid diagrams before theme switch to avoid two-step flash
     document.querySelectorAll('.mermaid[data-processed],.mermaid svg').forEach(el => {
       const pre = el.closest('pre') || el;
       if (pre._originalText) { pre.removeAttribute('data-processed'); pre.innerHTML = pre._originalText; }
@@ -247,7 +233,7 @@ ${body}
 
 render();
 
-const FONT_TYPES = { '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf' };
+const FONT_TYPES: Record<string, string> = { '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf' };
 
 const server = http.createServer((req, res) => {
   if (req.url === '/__poll') {
@@ -256,8 +242,8 @@ const server = http.createServer((req, res) => {
     res.end(String(lastMtime));
     return;
   }
-  if (offline && req.url.startsWith('/__fonts/')) {
-    const fontPath = path.join(katexFontsDir, path.basename(req.url));
+  if (offline && req.url?.startsWith('/__fonts/')) {
+    const fontPath = path.join(katexFontsDir!, path.basename(req.url));
     const ext = path.extname(req.url);
     try {
       res.writeHead(200, { 'Content-Type': FONT_TYPES[ext] || 'application/octet-stream', 'Cache-Control': 'public, max-age=31536000' });
@@ -274,6 +260,6 @@ server.listen(port, () => {
   console.log(`  Mode:  ${offline ? 'offline (local assets)' : 'online (CDN for KaTeX + Mermaid)'}`);
   console.log(`  File:  ${absFile}`);
   console.log(`  URL:   http://localhost:${port}`);
-  if (!offline) console.log(`\n  Tip: run "node ${path.basename(import.meta.url)} --init" for fully offline use`);
+  if (!offline) console.log(`\n  Tip: run "ghmd --init" for fully offline use`);
   console.log();
 });

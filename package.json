@@ -3,9 +3,10 @@
   "displayName": "GHMD — GitHub Markdown Preview",
   "description": "GitHub-style Markdown preview: standalone server + VS Code extension",
   "version": "0.1.0",
+  "type": "module",
   "publisher": "ubpa",
   "bin": {
-    "ghmd": "./serve.mjs"
+    "ghmd": "./dist/serve.mjs"
   },
   "engines": {
     "vscode": "^1.85.0"
@@ -96,13 +97,16 @@
     ]
   },
   "scripts": {
-    "start": "node serve.mjs",
-    "init-offline": "node serve.mjs --init",
-    "vendor": "node scripts/vendor.mjs",
-    "build": "npm run vendor && esbuild src/extension.cjs --bundle --outfile=dist/extension.js --platform=node --external:vscode --format=cjs --minify",
-    "dev": "npm run vendor && esbuild src/extension.cjs --bundle --outfile=dist/extension.js --platform=node --external:vscode --format=cjs --sourcemap",
+    "start": "node dist/serve.mjs",
+    "init-offline": "node dist/serve.mjs --init",
+    "build:ext": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --platform=node --external:vscode --format=cjs --minify",
+    "build:serve": "esbuild src/serve.mts --bundle --outfile=dist/serve.mjs --platform=node --format=esm --packages=external --banner:js='#!/usr/bin/env node'",
+    "build:test": "esbuild test/suite/index.ts test/suite/extension.test.ts --outdir=dist/test/suite --platform=node --external:vscode --external:mocha --external:assert --external:path --external:fs --external:os --format=cjs",
+    "build": "npm run build:ext && npm run build:serve",
+    "dev": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --platform=node --external:vscode --format=cjs --sourcemap",
+    "typecheck": "tsc --noEmit",
     "package": "npm run build && npx @vscode/vsce package --allow-missing-repository",
-    "test": "npm run build && node test/runTests.mjs"
+    "test": "npm run build && npm run build:test && tsx test/runTests.ts"
   },
   "dependencies": {
     "gemoji": "^8.1.0",
@@ -121,9 +125,15 @@
     "mermaid": "^11.14.0"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^25.6.0",
+    "@types/vscode": "^1.85.0",
     "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.9.1",
     "esbuild": "^0.28.0",
-    "mocha": "^11.7.5"
+    "mocha": "^11.7.5",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
   }
 }

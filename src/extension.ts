@@ -1,35 +1,34 @@
-const vscode = require('vscode');
-const path = require('path');
-const { Marked } = require('marked');
-const markedAlert = require('marked-alert');
-const markedFootnote = require('marked-footnote');
-const { frontmatterExtension } = require('./frontmatter.cjs');
-const { markedHighlight } = require('marked-highlight');
-const { markedEmoji } = require('marked-emoji');
-const markedLinkifyIt = require('marked-linkify-it');
-const hljs = require('highlight.js');
-const { gemoji } = require('gemoji');
-const fs = require('fs');
+import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
+import { Marked } from 'marked';
+import markedAlert from 'marked-alert';
+import markedFootnote from 'marked-footnote';
+import { frontmatterExtension } from './frontmatter.js';
+import { markedHighlight } from 'marked-highlight';
+import { markedEmoji } from 'marked-emoji';
+import markedLinkifyIt from 'marked-linkify-it';
+import hljs from 'highlight.js';
+import { gemoji } from 'gemoji';
+import { sourceLines, applySourceLineWrappers } from './source-lines.js';
 
-const emojiMap = {};
+const emojiMap: Record<string, string> = {};
 gemoji.forEach(e => e.names.forEach(n => { emojiMap[n] = e.emoji; }));
-
-const { sourceLines, applySourceLineWrappers } = require('./source-lines.cjs');
 
 const uiCss = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.css'), 'utf8');
 const tocJs  = fs.readFileSync(path.join(__dirname, '..', 'src', 'toc.js'), 'utf8');
 const scrollSyncJs = fs.readFileSync(path.join(__dirname, '..', 'src', 'scroll-sync.js'), 'utf8');
 
-let activePanel = null;
-let activeKey = null;
-let activeTheme = 'light';
-let changeDocSub = null;
-let scrollSyncSub = null;
+let activePanel: vscode.WebviewPanel | null = null;
+let activeKey: string | null = null;
+let activeTheme: 'light' | 'dark' = 'light';
+let changeDocSub: vscode.Disposable | null = null;
+let scrollSyncSub: vscode.Disposable | null = null;
 let lastRenderedHtml = '';
-let scrollSyncSource = null;
-let scrollSyncTimer = null;
+let scrollSyncSource: 'editor' | 'preview' | null = null;
+let scrollSyncTimer: ReturnType<typeof setTimeout> | null = null;
 
-function activate(context) {
+export function activate(context: vscode.ExtensionContext): void {
   vscode.commands.executeCommand('setContext', 'hasCustomMarkdownPreview', true);
   context.subscriptions.push(
     vscode.commands.registerCommand('ghmd.openPreview', () => openPreview(context, false)),
@@ -44,22 +43,22 @@ function activate(context) {
   );
 }
 
-function followEditor(doc, context) {
+function followEditor(doc: vscode.TextDocument, context: vscode.ExtensionContext): void {
   const key = doc.uri.toString();
   if (key === activeKey) return;
   activeKey = key;
   lastRenderedHtml = '';
-  activePanel.title = `Preview: ${path.basename(doc.fileName)}`;
+  activePanel!.title = `Preview: ${path.basename(doc.fileName)}`;
   if (changeDocSub) changeDocSub.dispose();
   changeDocSub = vscode.workspace.onDidChangeTextDocument(e => {
     if (e.document.uri.toString() === activeKey) {
-      updatePreview(activePanel, e.document, context);
+      updatePreview(activePanel!, e.document, context);
     }
   });
-  updatePreview(activePanel, doc, context);
+  updatePreview(activePanel!, doc, context);
 }
 
-function openPreview(context, toSide) {
+function openPreview(context: vscode.ExtensionContext, toSide: boolean): void {
   const editor = vscode.window.activeTextEditor;
   if (!editor || editor.document.languageId !== 'markdown') {
     vscode.window.showWarningMessage('GHMD: Open a Markdown file first');
@@ -95,24 +94,24 @@ function openPreview(context, toSide) {
     if (msg.type === 'themeChanged') {
       activeTheme = msg.theme;
       const currentDoc = vscode.workspace.textDocuments.find(d => d.uri.toString() === activeKey);
-      if (currentDoc) updatePreview(activePanel, currentDoc, context);
+      if (currentDoc) updatePreview(activePanel!, currentDoc, context);
     }
     if (msg.type === 'revealLine') {
       scrollSyncSource = 'preview';
-      clearTimeout(scrollSyncTimer);
+      if (scrollSyncTimer) clearTimeout(scrollSyncTimer);
       scrollSyncTimer = setTimeout(() => { scrollSyncSource = null; }, 300);
-      const editor = vscode.window.visibleTextEditors.find(e => e.document.uri.toString() === activeKey);
-      if (editor) {
+      const ed = vscode.window.visibleTextEditors.find(e => e.document.uri.toString() === activeKey);
+      if (ed) {
         const line = Math.max(0, msg.line - 1);
         const range = new vscode.Range(line, 0, line, 0);
-        editor.revealRange(range, vscode.TextEditorRevealType.AtTop);
+        ed.revealRange(range, vscode.TextEditorRevealType.AtTop);
       }
     }
   });
 
   changeDocSub = vscode.workspace.onDidChangeTextDocument(e => {
     if (e.document.uri.toString() === activeKey) {
-      updatePreview(activePanel, e.document, context);
+      updatePreview(activePanel!, e.document, context);
     }
   });
 
@@ -120,7 +119,7 @@ function openPreview(context, toSide) {
     if (scrollSyncSource === 'preview') return;
     if (!activePanel || e.textEditor.document.uri.toString() !== activeKey) return;
     scrollSyncSource = 'editor';
-    clearTimeout(scrollSyncTimer);
+    if (scrollSyncTimer) clearTimeout(scrollSyncTimer);
     scrollSyncTimer = setTimeout(() => { scrollSyncSource = null; }, 500);
     const line = e.visibleRanges[0]?.start.line + 1;
     if (line) activePanel.webview.postMessage({ type: 'scrollToLine', line });
@@ -142,14 +141,13 @@ function openPreview(context, toSide) {
   });
 }
 
-function slugify(text) {
+function slugify(text: string): string {
   return text.replace(/<[^>]+>/g, '').trim()
     .toLowerCase().replace(/[^\w一-鿿\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
 }
 
-function getMarked(markdown) {
+function getMarked(markdown: string): Marked {
   const marked = new Marked();
-  // frontmatter MUST be registered before footnote — reverse order crashes on files with both
   marked.use({ extensions: [frontmatterExtension] });
   marked.use(markedAlert());
   marked.use(markedFootnote());
@@ -183,24 +181,23 @@ function getMarked(markdown) {
       }
     }
   });
-  // Source line tracking: walkTokens annotates _line, wrappers inject data-source-line
   marked.use(sourceLines(markdown));
   applySourceLineWrappers(marked);
   return marked;
 }
 
-function escHtml(s) {
+function escHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function updatePreview(panel, doc, context) {
+function updatePreview(panel: vscode.WebviewPanel, doc: vscode.TextDocument, context: vscode.ExtensionContext): void {
   const text = doc.getText();
   const marked = getMarked(text);
-  let body;
+  let body: string;
   try {
-    body = marked.parse(text);
+    body = marked.parse(text) as string;
   } catch (err) {
-    vscode.window.showErrorMessage(`GHMD: render failed — ${err.message}`);
+    vscode.window.showErrorMessage(`GHMD: render failed — ${(err as Error).message}`);
     return;
   }
 
@@ -213,7 +210,6 @@ function updatePreview(panel, doc, context) {
   const hljsCdn = isDark
     ? 'https://cdn.jsdelivr.net/npm/highlight.js/styles/github-dark.css'
     : 'https://cdn.jsdelivr.net/npm/highlight.js/styles/github.css';
-
 
   const cacheKey = body + mode;
   if (cacheKey === lastRenderedHtml) return;
@@ -231,19 +227,14 @@ function updatePreview(panel, doc, context) {
 <link rel="stylesheet" href="${ghCdn}">
 <link rel="stylesheet" href="${hljsCdn}">
 <style>
-  /* VS Code-specific overrides; shared UI is in src/ui.css */
-  /* Match github-markdown-css body backgrounds so VS Code's dark body doesn't bleed through padding */
   html[data-theme="light"] { background: #ffffff; color-scheme: only light; }
   html[data-theme="dark"]  { background: #0d1117; color-scheme: only dark; }
-  /* VS Code's webview default CSS fills in properties github-markdown intentionally omits. */
   .markdown-body blockquote { background-color: transparent; }
   .markdown-body code, .markdown-body tt { color: inherit; }
   .ghmd-wrapper { padding: 32px 45px; }
   @media (max-width: 767px) { .ghmd-wrapper { padding: 15px; } }
-  /* Extension toolbar is slightly smaller */
   .toolbar { top: 12px; right: 12px; }
-  .toolbar button { width: 36px; height: 36px; font-size: 18px; }
-  .toc-panel { top: 56px; right: 12px; max-height: calc(100vh - 70px); }
+  .toc-panel { top: 48px; right: 12px; max-height: calc(100vh - 60px); }
 </style>
 <style>${uiCss}</style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css">
@@ -340,7 +331,6 @@ ${body}
   let _zoom = (vscode.getState() || {}).zoom || 100;
   wrapper.style.zoom = _zoom + '%';
 
-  // Zoom slider UI
   const zoomBar = document.createElement('div');
   zoomBar.className = 'zoom-bar';
   zoomBar.innerHTML = '<button class="zoom-btn" id="zoomOutBtn">−</button>'
@@ -377,7 +367,6 @@ ${body}
   document.getElementById('zoomInBtn').addEventListener('click', () => applyZoom(_zoom + 10));
   document.getElementById('zoomResetBtn').addEventListener('click', () => applyZoom(100));
 
-  // Pinch-to-zoom: trackpad pinch fires wheel events with ctrlKey in Chromium
   window.addEventListener('wheel', e => {
     if (!e.ctrlKey) return;
     e.preventDefault();
@@ -393,16 +382,14 @@ ${body}
 </html>`;
 }
 
-function getNonce() {
+function getNonce(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let nonce = '';
   for (let i = 0; i < 32; i++) nonce += chars.charAt(Math.floor(Math.random() * chars.length));
   return nonce;
 }
 
-function deactivate() {
+export function deactivate(): void {
   if (activePanel) { activePanel.dispose(); activePanel = null; }
   if (changeDocSub) { changeDocSub.dispose(); changeDocSub = null; }
 }
-
-module.exports = { activate, deactivate };

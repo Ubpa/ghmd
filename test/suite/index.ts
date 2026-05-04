@@ -1,12 +1,10 @@
-const path = require('path');
-const Mocha = require('mocha');
+import path from 'path';
+import Mocha from 'mocha';
 
-function run() {
+export function run(): Promise<void> {
   const mocha = new Mocha({ ui: 'tdd', timeout: 15000, color: true });
-  mocha.addFile(path.join(__dirname, 'extension.test.cjs'));
+  mocha.addFile(path.join(__dirname, 'extension.test.js'));
   return new Promise((resolve, reject) => {
     mocha.run(failures => failures ? reject(new Error(`${failures} test(s) failed`)) : resolve());
   });
 }
-
-module.exports = { run };
