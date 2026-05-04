@@ -9,6 +9,8 @@ docs/**
 test/**
 CLAUDE.md
 tsconfig.json
+dist/serve.mjs
+dist/test/**
 !src/toc.js
 !src/scroll-sync.js
 !src/ui.css

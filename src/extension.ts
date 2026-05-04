@@ -19,6 +19,14 @@ const uiCss = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.css'), 'utf8
 const tocJs  = fs.readFileSync(path.join(__dirname, '..', 'src', 'toc.js'), 'utf8');
 const scrollSyncJs = fs.readFileSync(path.join(__dirname, '..', 'src', 'scroll-sync.js'), 'utf8');
 
+const DEBOUNCE_MS = 150;
+const CDN = {
+  ghLight: 'https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown-light.css',
+  ghDark: 'https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown-dark.css',
+  hljsLight: 'https://cdn.jsdelivr.net/npm/highlight.js/styles/github.css',
+  hljsDark: 'https://cdn.jsdelivr.net/npm/highlight.js/styles/github-dark.css',
+};
+
 let activePanel: vscode.WebviewPanel | null = null;
 let activeKey: string | null = null;
 let activeTheme: 'light' | 'dark' = 'light';
@@ -27,6 +35,9 @@ let scrollSyncSub: vscode.Disposable | null = null;
 let lastRenderedHtml = '';
 let scrollSyncSource: 'editor' | 'preview' | null = null;
 let scrollSyncTimer: ReturnType<typeof setTimeout> | null = null;
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+let shellReady = false;
+let pendingUpdate: vscode.TextDocument | null = null;
 
 export function activate(context: vscode.ExtensionContext): void {
   vscode.commands.executeCommand('setContext', 'hasCustomMarkdownPreview', true);
@@ -38,12 +49,12 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('ghmd.zoomReset', () => { if (activePanel) activePanel.webview.postMessage({ type: 'zoom', reset: true }); }),
     vscode.window.onDidChangeActiveTextEditor(editor => {
       if (!activePanel || !editor || editor.document.languageId !== 'markdown') return;
-      followEditor(editor.document, context);
+      followEditor(editor.document);
     }),
   );
 }
 
-function followEditor(doc: vscode.TextDocument, context: vscode.ExtensionContext): void {
+function followEditor(doc: vscode.TextDocument): void {
   const key = doc.uri.toString();
   if (key === activeKey) return;
   activeKey = key;
@@ -51,11 +62,14 @@ function followEditor(doc: vscode.TextDocument, context: vscode.ExtensionContext
   activePanel!.title = `Preview: ${path.basename(doc.fileName)}`;
   if (changeDocSub) changeDocSub.dispose();
   changeDocSub = vscode.workspace.onDidChangeTextDocument(e => {
-    if (e.document.uri.toString() === activeKey) {
-      updatePreview(activePanel!, e.document, context);
-    }
+    if (e.document.uri.toString() === activeKey) debouncedUpdate(e.document);
   });
-  updatePreview(activePanel!, doc, context);
+  sendContentUpdate(doc);
+}
+
+function debouncedUpdate(doc: vscode.TextDocument): void {
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => sendContentUpdate(doc), DEBOUNCE_MS);
 }
 
 function openPreview(context: vscode.ExtensionContext, toSide: boolean): void {
@@ -69,7 +83,7 @@ function openPreview(context: vscode.ExtensionContext, toSide: boolean): void {
 
   if (activePanel) {
     activePanel.reveal();
-    followEditor(doc, context);
+    followEditor(doc);
     return;
   }
 
@@ -81,20 +95,30 @@ function openPreview(context: vscode.ExtensionContext, toSide: boolean): void {
     'ghmd.preview',
     `Preview: ${path.basename(doc.fileName)}`,
     { viewColumn: column, preserveFocus: true },
-    {
-      enableScripts: true,
-      retainContextWhenHidden: true,
-      localResourceRoots: [],
-    },
+    { enableScripts: true, retainContextWhenHidden: true, localResourceRoots: [] },
   );
 
   activeKey = doc.uri.toString();
+  shellReady = false;
+  pendingUpdate = null;
 
   activePanel.webview.onDidReceiveMessage(msg => {
+    if (msg.type === 'ready') {
+      shellReady = true;
+      if (pendingUpdate) { sendContentUpdate(pendingUpdate); pendingUpdate = null; }
+    }
     if (msg.type === 'themeChanged') {
       activeTheme = msg.theme;
+      lastRenderedHtml = '';
+      const isDark = msg.theme === 'dark';
+      activePanel!.webview.postMessage({
+        type: 'themeChange',
+        theme: msg.theme,
+        ghCdn: isDark ? CDN.ghDark : CDN.ghLight,
+        hljsCdn: isDark ? CDN.hljsDark : CDN.hljsLight,
+      });
       const currentDoc = vscode.workspace.textDocuments.find(d => d.uri.toString() === activeKey);
-      if (currentDoc) updatePreview(activePanel!, currentDoc, context);
+      if (currentDoc) sendContentUpdate(currentDoc);
     }
     if (msg.type === 'revealLine') {
       scrollSyncSource = 'preview';
@@ -103,16 +127,13 @@ function openPreview(context: vscode.ExtensionContext, toSide: boolean): void {
       const ed = vscode.window.visibleTextEditors.find(e => e.document.uri.toString() === activeKey);
       if (ed) {
         const line = Math.max(0, msg.line - 1);
-        const range = new vscode.Range(line, 0, line, 0);
-        ed.revealRange(range, vscode.TextEditorRevealType.AtTop);
+        ed.revealRange(new vscode.Range(line, 0, line, 0), vscode.TextEditorRevealType.AtTop);
       }
     }
   });
 
   changeDocSub = vscode.workspace.onDidChangeTextDocument(e => {
-    if (e.document.uri.toString() === activeKey) {
-      updatePreview(activePanel!, e.document, context);
-    }
+    if (e.document.uri.toString() === activeKey) debouncedUpdate(e.document);
   });
 
   scrollSyncSub = vscode.window.onDidChangeTextEditorVisibleRanges(e => {
@@ -125,7 +146,8 @@ function openPreview(context: vscode.ExtensionContext, toSide: boolean): void {
     if (line) activePanel.webview.postMessage({ type: 'scrollToLine', line });
   });
 
-  updatePreview(activePanel, doc, context);
+  setShellHtml(activePanel);
+  sendContentUpdate(doc);
 
   activePanel.onDidChangeViewState(e => {
     vscode.commands.executeCommand('setContext', 'ghmd.previewActive', e.webviewPanel.active);
@@ -136,6 +158,9 @@ function openPreview(context: vscode.ExtensionContext, toSide: boolean): void {
     activePanel = null;
     activeKey = null;
     lastRenderedHtml = '';
+    shellReady = false;
+    pendingUpdate = null;
+    if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null; }
     if (changeDocSub) { changeDocSub.dispose(); changeDocSub = null; }
     if (scrollSyncSub) { scrollSyncSub.dispose(); scrollSyncSub = null; }
   });
@@ -190,7 +215,10 @@ function escHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function updatePreview(panel: vscode.WebviewPanel, doc: vscode.TextDocument, context: vscode.ExtensionContext): void {
+function sendContentUpdate(doc: vscode.TextDocument): void {
+  if (!activePanel) return;
+  if (!shellReady) { pendingUpdate = doc; return; }
+
   const text = doc.getText();
   const marked = getMarked(text);
   let body: string;
@@ -201,31 +229,26 @@ function updatePreview(panel: vscode.WebviewPanel, doc: vscode.TextDocument, con
     return;
   }
 
-  const mode = activeTheme;
-  const isDark = mode === 'dark';
-
-  const ghCdn = isDark
-    ? 'https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown-dark.css'
-    : 'https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown-light.css';
-  const hljsCdn = isDark
-    ? 'https://cdn.jsdelivr.net/npm/highlight.js/styles/github-dark.css'
-    : 'https://cdn.jsdelivr.net/npm/highlight.js/styles/github.css';
-
-  const cacheKey = body + mode;
+  const cacheKey = body + activeTheme;
   if (cacheKey === lastRenderedHtml) return;
   lastRenderedHtml = cacheKey;
 
+  activePanel.webview.postMessage({ type: 'update', body, fileKey: activeKey });
+}
+
+function setShellHtml(panel: vscode.WebviewPanel): void {
   const nonce = getNonce();
+  const isDark = activeTheme === 'dark';
 
   panel.webview.html = `<!DOCTYPE html>
-<html lang="en" data-theme="${mode}">
+<html lang="en" data-theme="${activeTheme}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="${isDark ? 'dark' : 'only light'}">
+<meta id="color-scheme" name="color-scheme" content="${isDark ? 'dark' : 'only light'}">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' https://cdn.jsdelivr.net; script-src 'nonce-${nonce}' https://cdn.jsdelivr.net; img-src ${panel.webview.cspSource} https: data:; font-src ${panel.webview.cspSource} https://cdn.jsdelivr.net;">
-<link rel="stylesheet" href="${ghCdn}">
-<link rel="stylesheet" href="${hljsCdn}">
+<link id="gh-css" rel="stylesheet" href="${isDark ? CDN.ghDark : CDN.ghLight}">
+<link id="hljs-css" rel="stylesheet" href="${isDark ? CDN.hljsDark : CDN.hljsLight}">
 <style>
   html[data-theme="light"] { background: #ffffff; color-scheme: only light; }
   html[data-theme="dark"]  { background: #0d1117; color-scheme: only dark; }
@@ -238,7 +261,6 @@ function updatePreview(panel: vscode.WebviewPanel, doc: vscode.TextDocument, con
 </style>
 <style>${uiCss}</style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css">
-
 <script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js"></script>
 <script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js"></script>
 <script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
@@ -252,39 +274,25 @@ function updatePreview(panel: vscode.WebviewPanel, doc: vscode.TextDocument, con
   </button>
 </div>
 <nav class="toc-panel" id="tocPanel"></nav>
-<div class="ghmd-wrapper markdown-body">
-${body}
-</div>
+<div class="ghmd-wrapper markdown-body"></div>
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
+  const wrapper = document.querySelector('.ghmd-wrapper');
+  let _currentFileKey = null;
 
   ${tocJs}
+  ${scrollSyncJs}
 
+  // Toolbar
   document.getElementById('tocBtn').addEventListener('click', () => {
     document.getElementById('tocPanel').classList.toggle('open');
   });
-
   document.getElementById('themeBtn').addEventListener('click', () => {
     const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
     vscode.postMessage({ type: 'themeChanged', theme: next });
-    document.querySelectorAll('.mermaid[data-processed],.mermaid svg').forEach(el => {
-      const pre = el.closest('pre') || el;
-      if (pre._originalText) { pre.removeAttribute('data-processed'); pre.innerHTML = pre._originalText; }
-    });
-    mermaid.initialize({ startOnLoad: false, theme: next === 'dark' ? 'dark' : 'default' });
-    mermaid.run();
   });
 
-  document.querySelectorAll('pre.mermaid').forEach(el => { el._originalText = el.textContent; });
-
-  renderMathInElement(document.querySelector('.ghmd-wrapper'), {
-    delimiters: [
-      { left: '$$', right: '$$', display: true },
-      { left: '$', right: '$', display: false },
-    ],
-    throwOnError: false,
-  });
-
+  // Mermaid SVG sliders (auto-attached via MutationObserver)
   function addSvgSliders() {
     document.querySelectorAll('pre.mermaid svg').forEach(svg => {
       if (svg._hasSlider) return;
@@ -294,7 +302,6 @@ ${body}
       if (!vb) return;
       const intrinsicW = parseFloat(vb.split(' ')[2]);
       if (!intrinsicW) return;
-
       const wrap = document.createElement('div');
       wrap.className = 'mermaid-wrap';
       pre.parentNode.insertBefore(wrap, pre);
@@ -303,7 +310,6 @@ ${body}
       bar.className = 'svg-slider';
       bar.innerHTML = '<button class="zoom-btn svg-minus">−</button><input type="range" min="20" max="300" value="100"><button class="zoom-btn svg-plus">+</button><button class="zoom-btn svg-reset">↺</button><span>100%</span>';
       wrap.appendChild(bar);
-
       const slider = bar.querySelector('input');
       const label = bar.querySelector('span');
       function setSvgWidth(pct) {
@@ -318,19 +324,11 @@ ${body}
       bar.querySelector('.svg-reset').addEventListener('click', () => setSvgWidth(100));
     });
   }
-  new MutationObserver(addSvgSliders).observe(document.querySelector('.ghmd-wrapper'), { childList: true, subtree: true });
+  new MutationObserver(addSvgSliders).observe(wrapper, { childList: true, subtree: true });
 
-  const initTheme = document.documentElement.getAttribute('data-theme');
-  mermaid.initialize({ startOnLoad: true, theme: initTheme === 'dark' ? 'dark' : 'default' });
-  buildToc();
-
-  ${scrollSyncJs}
-  initScrollSync(msg => vscode.postMessage(msg));
-
-  const wrapper = document.querySelector('.ghmd-wrapper');
+  // Zoom
   let _zoom = (vscode.getState() || {}).zoom || 100;
   wrapper.style.zoom = _zoom + '%';
-
   const zoomBar = document.createElement('div');
   zoomBar.className = 'zoom-bar';
   zoomBar.innerHTML = '<button class="zoom-btn" id="zoomOutBtn">−</button>'
@@ -342,7 +340,6 @@ ${body}
   const zoomSlider = document.getElementById('zoomSlider');
   const zoomLabel = document.getElementById('zoomLabel');
   let zoomHideTimer = null;
-
   function applyZoom(val) {
     _zoom = Math.max(30, Math.min(300, val));
     wrapper.style.zoom = _zoom + '%';
@@ -351,7 +348,6 @@ ${body}
     vscode.setState({ ...(vscode.getState() || {}), zoom: _zoom });
     showZoomBar();
   }
-
   function showZoomBar() {
     zoomBar.classList.add('visible');
     clearTimeout(zoomHideTimer);
@@ -359,24 +355,71 @@ ${body}
   }
   zoomBar.addEventListener('mouseenter', () => { clearTimeout(zoomHideTimer); zoomBar.classList.add('visible'); });
   zoomBar.addEventListener('mouseleave', () => { zoomHideTimer = setTimeout(() => zoomBar.classList.remove('visible'), 1000); });
-
   zoomSlider.value = _zoom;
   zoomLabel.textContent = _zoom + '%';
   zoomSlider.addEventListener('input', () => applyZoom(parseInt(zoomSlider.value)));
   document.getElementById('zoomOutBtn').addEventListener('click', () => applyZoom(_zoom - 10));
   document.getElementById('zoomInBtn').addEventListener('click', () => applyZoom(_zoom + 10));
   document.getElementById('zoomResetBtn').addEventListener('click', () => applyZoom(100));
-
   window.addEventListener('wheel', e => {
     if (!e.ctrlKey) return;
     e.preventDefault();
     applyZoom(_zoom + (e.deltaY < 0 ? 5 : -5));
   }, { passive: false });
 
+  // Scroll sync (bind once — querySelectorAll runs on each scroll so new elements are found)
+  initScrollSync(msg => vscode.postMessage(msg));
+
+  // Content update handler
+  function onContentUpdate(bodyHtml, fileKey) {
+    const fileChanged = fileKey !== _currentFileKey;
+    _currentFileKey = fileKey;
+    if (fileChanged) {
+      vscode.setState({ ...(vscode.getState() || {}), fileKey });
+      window.scrollTo(0, 0);
+    }
+    wrapper.innerHTML = bodyHtml;
+    document.querySelectorAll('pre.mermaid').forEach(el => { el._originalText = el.textContent; });
+    if (typeof renderMathInElement === 'function') {
+      renderMathInElement(wrapper, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$', right: '$', display: false },
+        ],
+        throwOnError: false,
+      });
+    }
+    const theme = document.documentElement.getAttribute('data-theme');
+    mermaid.initialize({ startOnLoad: false, theme: theme === 'dark' ? 'dark' : 'default' });
+    mermaid.run({ nodes: wrapper.querySelectorAll('pre.mermaid') });
+    buildToc();
+  }
+
+  // Theme change handler
+  function onThemeChange(theme, ghCdn, hljsCdn) {
+    document.documentElement.setAttribute('data-theme', theme);
+    document.getElementById('color-scheme').content = theme === 'dark' ? 'dark' : 'only light';
+    document.getElementById('gh-css').href = ghCdn;
+    document.getElementById('hljs-css').href = hljsCdn;
+    document.querySelectorAll('.mermaid[data-processed],.mermaid svg').forEach(el => {
+      const pre = el.closest('pre') || el;
+      if (pre._originalText) { pre.removeAttribute('data-processed'); pre.innerHTML = pre._originalText; }
+    });
+    mermaid.initialize({ startOnLoad: false, theme: theme === 'dark' ? 'dark' : 'default' });
+    mermaid.run();
+  }
+
+  // Message dispatcher
   window.addEventListener('message', e => {
-    if (e.data.type === 'scrollToLine') scrollToLine(e.data.line);
-    if (e.data.type === 'zoom') applyZoom(e.data.reset ? 100 : _zoom + e.data.delta);
+    const msg = e.data;
+    if (msg.type === 'update') onContentUpdate(msg.body, msg.fileKey);
+    if (msg.type === 'themeChange') onThemeChange(msg.theme, msg.ghCdn, msg.hljsCdn);
+    if (msg.type === 'scrollToLine') scrollToLine(msg.line);
+    if (msg.type === 'zoom') applyZoom(msg.reset ? 100 : _zoom + msg.delta);
   });
+
+  // Signal ready
+  vscode.postMessage({ type: 'ready' });
 </script>
 </body>
 </html>`;

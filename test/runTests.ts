@@ -2,7 +2,7 @@ import { runTests } from '@vscode/test-electron';
 import path from 'path';
 
 const extensionDevelopmentPath = path.resolve(import.meta.dirname, '..');
-const extensionTestsPath = path.resolve(import.meta.dirname, '..', 'dist', 'test', 'suite', 'index.js');
+const extensionTestsPath = path.resolve(import.meta.dirname, '..', 'dist', 'test', 'suite', 'index.cjs');
 
 process.env.VSCODE_CLI = '1';
 

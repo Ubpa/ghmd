@@ -9,7 +9,7 @@ ghmd is a GitHub-style Markdown previewer that ships as both a standalone HTTP s
 ## Commands
 
 ```bash
-npm run build        # esbuild: extension.ts → dist/extension.js, serve.mts → serve.mjs
+npm run build        # esbuild: extension.ts → dist/extension.cjs, serve.mts → serve.mjs
 npm run build:ext    # extension only
 npm run build:serve  # server only
 npm run dev          # extension with sourcemaps (for F5 debugging)
@@ -28,13 +28,13 @@ node dist/serve.mjs --init             # download katex+mermaid for offline mode
 **Two entry points, one rendering pipeline:**
 
 - `src/serve.mts` — standalone Node HTTP server (ESM). Compiled by esbuild to `dist/serve.mjs`. KaTeX/Mermaid load from CDN unless `--init` was run (then local from `node_modules/`).
-- `src/extension.ts` — VS Code extension. Bundled by esbuild into `dist/extension.js` (CJS, minified, `vscode` externalized). All external assets (KaTeX, Mermaid, highlight.js CSS, github-markdown-css) load from CDN.
+- `src/extension.ts` — VS Code extension. Bundled by esbuild into `dist/extension.cjs` (CJS, minified, `vscode` externalized). All external assets (KaTeX, Mermaid, highlight.js CSS, github-markdown-css) load from CDN.
 
 **Shared UI (SSOT):** `src/ui.css`, `src/toc.js`, and `src/scroll-sync.js` are read at runtime by both entry points via `fs.readFileSync` and inlined into the HTML. They are plain JS/CSS, not TypeScript — they run in the browser, not in Node.
 
 **CDN assets:** The extension loads all external CSS and JS from `cdn.jsdelivr.net` at runtime — no vendored files are shipped.
 
-**Build output:** `dist/extension.js` and `dist/serve.mjs` are both gitignored build artifacts.
+**Build output:** `dist/extension.cjs` and `dist/serve.mjs` are both gitignored build artifacts.
 
 ## Key Design Decisions
 
