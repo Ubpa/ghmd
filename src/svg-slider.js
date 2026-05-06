@@ -1,8 +1,12 @@
 // Per-mermaid-SVG width slider (inlined into both server and VS Code extension).
-// 100% = the SVG's intrinsic width from viewBox, NOT the mermaid auto-fit width.
-// Mermaid renders large diagrams with width="100%" which shrinks them to fit the
-// container; without this the slider's "100%" would lock to that shrunken size,
-// so users could never zoom to a readable natural size.
+//
+// 100% on the slider == the SVG's intrinsic width from viewBox (natural readable
+// size). Mermaid renders large diagrams with width="100%" inside max-width, which
+// shrinks them to fit the container; we leave that initial auto-fit alone (the
+// diagram displays fully on first paint), but the slider's starting position
+// reflects the current ratio so its label matches the visual. From there, the
+// user can zoom up to 100% (natural) or down further, and reset returns to the
+// auto-fit starting position.
 
 function clampPct(pct) {
   return Math.max(20, Math.min(300, pct));
@@ -17,6 +21,11 @@ function getSvgBaseWidth(svg) {
   return svg.getBoundingClientRect().width;
 }
 
+function getInitialPct(intrinsic, rendered) {
+  if (!intrinsic || !rendered) return 100;
+  return clampPct(Math.round(rendered / intrinsic * 100));
+}
+
 // eslint-disable-next-line no-unused-vars
 function addSvgSliders(root) {
   (root || document).querySelectorAll('pre.mermaid svg').forEach(svg => {
@@ -26,6 +35,7 @@ function addSvgSliders(root) {
     if (!svg.getAttribute('viewBox')) return;
     const baseWidth = getSvgBaseWidth(svg);
     if (!baseWidth) return;
+    const initialPct = getInitialPct(baseWidth, svg.getBoundingClientRect().width);
 
     const wrap = document.createElement('div');
     wrap.className = 'mermaid-wrap';
@@ -35,14 +45,17 @@ function addSvgSliders(root) {
     const bar = document.createElement('div');
     bar.className = 'svg-slider';
     bar.innerHTML = '<button class="zoom-btn svg-minus">−</button>'
-      + '<input type="range" min="20" max="300" value="100">'
+      + '<input type="range" min="20" max="300">'
       + '<button class="zoom-btn svg-plus">+</button>'
       + '<button class="zoom-btn svg-reset">↺</button>'
-      + '<span>100%</span>';
+      + '<span></span>';
     wrap.insertBefore(bar, pre);
 
     const slider = bar.querySelector('input');
     const label = bar.querySelector('span');
+    slider.value = initialPct;
+    label.textContent = initialPct + '%';
+
     let svgHideTimer = null;
     function showSlider() { bar.classList.add('visible'); clearTimeout(svgHideTimer); }
     function hideSlider() { svgHideTimer = setTimeout(() => bar.classList.remove('visible'), 500); }
@@ -50,11 +63,6 @@ function addSvgSliders(root) {
     wrap.addEventListener('mouseleave', hideSlider);
     bar.addEventListener('mouseenter', showSlider);
     bar.addEventListener('mouseleave', hideSlider);
-
-    // Apply baseWidth at init so 100% matches the visible SVG immediately.
-    // Otherwise mermaid's width="100%" auto-fit causes a jump on first slider move.
-    svg.style.maxWidth = 'none';
-    svg.style.width = baseWidth + 'px';
 
     function setSvgWidth(pct) {
       pct = clampPct(pct);
@@ -72,9 +80,17 @@ function addSvgSliders(root) {
       const dy = (newRect.top + yr * newRect.height) - viewMidY;
       if (Math.abs(dy) > 1) window.scrollBy(0, dy);
     }
+    function resetToInitial() {
+      // Clear inline width/maxWidth so mermaid's original auto-fit comes back
+      // exactly (avoids rounding drift from initialPct * baseWidth).
+      svg.style.width = '';
+      svg.style.maxWidth = '';
+      slider.value = initialPct;
+      label.textContent = initialPct + '%';
+    }
     slider.addEventListener('input', () => setSvgWidth(parseInt(slider.value)));
     bar.querySelector('.svg-minus').addEventListener('click', () => setSvgWidth(parseInt(slider.value) - 10));
     bar.querySelector('.svg-plus').addEventListener('click', () => setSvgWidth(parseInt(slider.value) + 10));
-    bar.querySelector('.svg-reset').addEventListener('click', () => setSvgWidth(100));
+    bar.querySelector('.svg-reset').addEventListener('click', resetToInitial);
   });
 }
