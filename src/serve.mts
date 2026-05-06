@@ -7,6 +7,7 @@ import { Marked } from 'marked';
 import markedAlert from 'marked-alert';
 import markedFootnote from 'marked-footnote';
 import { createFrontmatterExtension } from './frontmatter.js';
+import { createMathExtensions } from './math.js';
 import { sourceLines, applySourceLineWrappers } from './source-lines.js';
 import { markedHighlight } from 'marked-highlight';
 import { markedEmoji } from 'marked-emoji';
@@ -46,7 +47,7 @@ function escHtml(s: string): string {
 }
 
 const marked = new Marked();
-marked.use({ extensions: [createFrontmatterExtension()] });
+marked.use({ extensions: [createFrontmatterExtension(), ...createMathExtensions()] });
 marked.use(markedAlert());
 marked.use(markedFootnote());
 marked.use(markedHighlight({
@@ -83,6 +84,7 @@ marked.use({
 const uiCss  = fs.readFileSync(path.join(__dir, 'src', 'ui.css'), 'utf8');
 const tocJs  = fs.readFileSync(path.join(__dir, 'src', 'toc.js'), 'utf8');
 const scrollSyncJs = fs.readFileSync(path.join(__dir, 'src', 'scroll-sync.js'), 'utf8');
+const svgSliderJs = fs.readFileSync(path.join(__dir, 'src', 'svg-slider.js'), 'utf8');
 
 const cssDir = path.dirname(new URL(import.meta.resolve('github-markdown-css')).pathname);
 const ghLightCss = fs.readFileSync(path.join(cssDir, 'github-markdown-light.css'), 'utf8');
@@ -219,55 +221,9 @@ ${body}
   buildToc();
 
   // Mermaid SVG sliders
-  function addSvgSliders() {
-    document.querySelectorAll('pre.mermaid svg').forEach(svg => {
-      if (svg._hasSlider) return;
-      svg._hasSlider = true;
-      const pre = svg.closest('pre');
-      if (!svg.getAttribute('viewBox')) return;
-      const baseWidth = svg.getBoundingClientRect().width;
-      if (!baseWidth) return;
-      const wrap = document.createElement('div');
-      wrap.className = 'mermaid-wrap';
-      pre.parentNode.insertBefore(wrap, pre);
-      wrap.appendChild(pre);
-      const bar = document.createElement('div');
-      bar.className = 'svg-slider';
-      bar.innerHTML = '<button class="zoom-btn svg-minus">−</button><input type="range" min="20" max="300" value="100"><button class="zoom-btn svg-plus">+</button><button class="zoom-btn svg-reset">↺</button><span>100%</span>';
-      wrap.insertBefore(bar, pre);
-      const slider = bar.querySelector('input');
-      const label = bar.querySelector('span');
-      let svgHideTimer = null;
-      function showSlider() { bar.classList.add('visible'); clearTimeout(svgHideTimer); }
-      function hideSlider() { svgHideTimer = setTimeout(() => bar.classList.remove('visible'), 500); }
-      wrap.addEventListener('mouseenter', showSlider);
-      wrap.addEventListener('mouseleave', hideSlider);
-      bar.addEventListener('mouseenter', showSlider);
-      bar.addEventListener('mouseleave', hideSlider);
-      function setSvgWidth(pct) {
-        pct = Math.max(20, Math.min(300, pct));
-        slider.value = pct;
-        label.textContent = pct + '%';
-        const oldRect = svg.getBoundingClientRect();
-        const preMidX = pre.getBoundingClientRect().left + pre.clientWidth / 2;
-        const viewMidY = window.innerHeight / 2;
-        const xr = oldRect.width > 0 ? Math.max(0, Math.min(1, (preMidX - oldRect.left) / oldRect.width)) : 0.5;
-        const yr = oldRect.height > 0 ? Math.max(0, Math.min(1, (viewMidY - oldRect.top) / oldRect.height)) : 0.5;
-        svg.style.width = (baseWidth * pct / 100) + 'px';
-        svg.style.maxWidth = 'none';
-        const newRect = svg.getBoundingClientRect();
-        pre.scrollLeft += (newRect.left + xr * newRect.width) - preMidX;
-        const dy = (newRect.top + yr * newRect.height) - viewMidY;
-        if (Math.abs(dy) > 1) window.scrollBy(0, dy);
-      }
-      slider.addEventListener('input', () => setSvgWidth(parseInt(slider.value)));
-      bar.querySelector('.svg-minus').addEventListener('click', () => setSvgWidth(parseInt(slider.value) - 10));
-      bar.querySelector('.svg-plus').addEventListener('click', () => setSvgWidth(parseInt(slider.value) + 10));
-      bar.querySelector('.svg-reset').addEventListener('click', () => setSvgWidth(100));
-    });
-  }
-  setTimeout(addSvgSliders, 500);
-  new MutationObserver(addSvgSliders).observe(document.querySelector('.ghmd-wrapper'), { childList: true, subtree: true });
+  ${svgSliderJs}
+  setTimeout(() => addSvgSliders(), 500);
+  new MutationObserver(() => addSvgSliders()).observe(document.querySelector('.ghmd-wrapper'), { childList: true, subtree: true });
 
   let mtime = '';
   setInterval(async () => {
