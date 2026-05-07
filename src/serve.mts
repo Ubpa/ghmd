@@ -9,6 +9,7 @@ import markedFootnote from 'marked-footnote';
 import { createFrontmatterExtension } from './frontmatter.js';
 import { createMathExtensions } from './math.js';
 import { sourceLines, applySourceLineWrappers } from './source-lines.js';
+import { createHeadingRenderer } from './heading.js';
 import { markedHighlight } from 'marked-highlight';
 import { markedEmoji } from 'marked-emoji';
 import markedLinkifyIt from 'marked-linkify-it';
@@ -37,11 +38,6 @@ if (!file) {
 const port = parseInt(process.argv[3] || '6419');
 const absFile = path.resolve(file);
 
-function slugify(text: string): string {
-  return text.replace(/<[^>]+>/g, '').trim()
-    .toLowerCase().replace(/[^\w一-鿿\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-}
-
 function escHtml(s: string): string {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
@@ -59,12 +55,9 @@ marked.use(markedHighlight({
 }));
 marked.use(markedEmoji({ emojis: emojiMap }));
 marked.use(markedLinkifyIt());
+marked.use(createHeadingRenderer());
 marked.use({
   renderer: {
-    heading({ text, depth }) {
-      const id = slugify(text);
-      return `<h${depth} id="${id}">${text}</h${depth}>\n`;
-    },
     code({ text, lang }) {
       if (lang === 'mermaid') return `<pre class="mermaid">${escHtml(text)}</pre>`;
       if (lang === 'math') return `<div class="math-block">$$${escHtml(text)}$$</div>`;
