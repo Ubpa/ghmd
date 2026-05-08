@@ -15,12 +15,13 @@ export function createHeadingRenderer(): MarkedExtension {
       }
     },
     renderer: {
-      heading({ text, depth }) {
+      heading(this: { parser: { parseInline(t: unknown[]): string } }, { text, depth, tokens }: { text: string; depth: number; tokens?: unknown[] }) {
+        const inner = tokens ? this.parser.parseInline(tokens) : text;
         const base = slugify(text);
         const count = seen.get(base) ?? 0;
         seen.set(base, count + 1);
         const id = count === 0 ? base : `${base}-${count}`;
-        return `<h${depth} id="${id}">${text}</h${depth}>\n`;
+        return `<h${depth} id="${id}">${inner}</h${depth}>\n`;
       }
     }
   };

@@ -46,4 +46,35 @@ console.log('test: frontmatter extension is per-instance (no state leak)');
   assert.ok(html2.includes('B'), 'second doc section B must be visible');
 }
 
+// --- Frontmatter: inline markdown in values ---
+
+console.log('test: inline code in YAML string values renders as <code>');
+{
+  const html = parse(`---\nsummary: "the \`Id<Marker>\` type is 64-bit"\n---\n\n# X\n`);
+  assert.ok(html.includes('<code>'), 'should render backticks as <code>');
+  assert.ok(html.includes('Id&lt;Marker&gt;'), 'angle brackets inside code stay escaped');
+  assert.ok(!html.match(/`Id/), 'no raw backticks should remain');
+}
+
+console.log('test: inline code inside YAML array values renders as <code>');
+{
+  const html = parse(`---\ntags: ["\`foo\`", bar]\n---\n\n# X\n`);
+  assert.ok(html.includes('<code>foo</code>'), 'backticks inside array string should render');
+  assert.ok(html.includes('bar'), 'plain array items still render');
+}
+
+console.log('test: links and emphasis in YAML values render as inline markdown');
+{
+  const html = parse(`---\nurl: "[wgpu](https://example.com)"\nnote: "*important*"\n---\n\n# X\n`);
+  assert.ok(html.includes('<a href="https://example.com"'), 'inline link should render');
+  assert.ok(html.includes('<em>important</em>'), 'inline emphasis should render');
+}
+
+console.log('test: plain YAML strings without markdown still escape HTML');
+{
+  const html = parse(`---\ntitle: "<script>alert(1)</script>"\n---\n\n# X\n`);
+  assert.ok(!html.includes('<script>'), 'raw HTML must remain escaped');
+  assert.ok(html.includes('&lt;script&gt;') || html.includes('alert(1)'), 'should be escaped');
+}
+
 console.log('all frontmatter tests passed ✓');

@@ -56,4 +56,31 @@ console.log('test: single occurrence keeps unsuffixed id (no behavior change for
   assert.deepEqual(ids, ['唯一', '仅一次']);
 }
 
+// --- Inline markdown inside heading text ---
+
+console.log('test: backtick code in heading renders as <code>');
+{
+  const html = parse('# `ImmediateItem` —— Push Constants 模拟\n');
+  assert.ok(html.includes('<code>ImmediateItem</code>'),
+    `expected <code> in heading, got: ${html}`);
+  assert.ok(!html.match(/<h1[^>]*>`/), 'no raw backticks should remain in heading');
+}
+
+console.log('test: heading id strips inline code markup but keeps the text');
+{
+  const html = parse('# `ImmediateItem` —— Push Constants 模拟\n');
+  const ids = extractIds(html);
+  assert.equal(ids.length, 1);
+  assert.ok(ids[0].includes('immediateitem'),
+    `id should contain identifier text, got: ${ids[0]}`);
+  assert.ok(!ids[0].includes('`'), 'id must not contain backticks');
+}
+
+console.log('test: emphasis and links inside headings render as inline markdown');
+{
+  const html = parse('## *bold* and [link](https://x.test)\n');
+  assert.ok(html.includes('<em>bold</em>'), 'emphasis should render');
+  assert.ok(html.includes('<a href="https://x.test"'), 'link should render');
+}
+
 console.log('all heading-anchors tests passed ✓');

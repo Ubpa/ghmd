@@ -1,13 +1,24 @@
 import yaml from 'js-yaml';
-import type { TokenizerAndRendererExtension, Tokens } from 'marked';
+import { Marked, type TokenizerAndRendererExtension, type Tokens } from 'marked';
 
 function escHtml(s: string): string {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+const inlineMarked = new Marked({
+  tokenizer: {
+    tag() { return undefined; },
+  },
+});
+
+function renderInline(s: string): string {
+  return inlineMarked.parseInline(s) as string;
+}
+
 function formatValue(val: unknown): string {
-  if (Array.isArray(val)) return escHtml(val.join(', '));
+  if (Array.isArray(val)) return val.map(formatValue).join(', ');
   if (val && typeof val === 'object') return escHtml(JSON.stringify(val));
+  if (typeof val === 'string') return renderInline(val);
   return escHtml(val as string);
 }
 
