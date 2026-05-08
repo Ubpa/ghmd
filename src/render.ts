@@ -15,6 +15,10 @@ import { escHtml } from './escape.js';
 const emojiMap: Record<string, string> = {};
 gemoji.forEach(e => e.names.forEach(n => { emojiMap[n] = e.emoji; }));
 
+// Code blocks whose rendering we own — markedHighlight must not pre-process them,
+// otherwise token.text arrives as hljs HTML and our custom renderer escapes it.
+const CUSTOM_LANGS = new Set(['mermaid', 'math', 'diff']);
+
 export function createMarked(markdown: string): Marked {
   const marked = new Marked();
   marked.use({ extensions: [createFrontmatterExtension(), ...createMathExtensions()] });
@@ -23,7 +27,9 @@ export function createMarked(markdown: string): Marked {
   marked.use(markedHighlight({
     langPrefix: 'hljs language-',
     highlight(code, lang) {
-      if (lang && hljs.getLanguage(lang)) return hljs.highlight(code, { language: lang }).value;
+      if (lang && !CUSTOM_LANGS.has(lang) && hljs.getLanguage(lang)) {
+        return hljs.highlight(code, { language: lang }).value;
+      }
       return code;
     }
   }));
