@@ -68,80 +68,74 @@ console.log('test: clampPct constrains slider value to [20, 300]');
   assert.equal(clampPct(500), 300);
 }
 
-// --- Initial display preserves mermaid's auto-fit; slider reflects current ratio ---
+// --- Initial display: clamped auto-fit (min-width floors max compression) ---
 
-const { getInitialPct } = new Function(
-  sliderJs + '\nreturn { getInitialPct };'
-)();
-
-console.log('test: getInitialPct reflects rendered/intrinsic ratio for large diagrams');
+console.log('test: init sets style.minWidth so heavy compression overflows instead');
 {
-  // User's case: intrinsic 2725, mermaid auto-fit shrinks to ~694 to fit container.
-  // Slider should start at ~25%, not 100%, so its label matches the visual.
-  assert.equal(getInitialPct(2725, 694), 25);
-  assert.equal(getInitialPct(2725, 1363), 50);
-}
-
-console.log('test: getInitialPct returns 100 when there is no shrinkage');
-{
-  assert.equal(getInitialPct(400, 400), 100);
-  assert.equal(getInitialPct(800, 800), 100);
-}
-
-console.log('test: getInitialPct clamps to slider min/max');
-{
-  assert.equal(getInitialPct(10000, 100), 20, 'huge diagram clamped to min 20%');
-  assert.equal(getInitialPct(0, 500), 100, 'guard against divide-by-zero');
-  assert.equal(getInitialPct(500, 0), 100, 'guard against zero rendered');
-}
-
-console.log('test: slider does NOT apply style.width at init (preserves mermaid auto-fit)');
-{
-  // Look at the addSvgSliders function specifically — setSvgWidth still sets
-  // svg.style.width inside its body (that's the per-zoom action), but no
-  // top-level write before the input handlers are wired up.
   const initBlock = sliderJs.match(
     /const baseWidth = getSvgBaseWidth[\s\S]*?function setSvgWidth/
   )?.[0] || '';
   assert.ok(
+    /svg\.style\.minWidth\s*=/.test(initBlock),
+    'init must set svg.style.minWidth so wide diagrams have a readable floor'
+  );
+  assert.ok(
+    /minWidth\s*=[^;]*baseWidth/.test(initBlock),
+    'minWidth should be derived from baseWidth (e.g. baseWidth * MIN_RATIO)'
+  );
+  assert.ok(
     !/svg\.style\.width\s*=/.test(initBlock),
-    'init must not write svg.style.width before user interacts (would override mermaid auto-fit)'
+    'init must NOT lock svg.style.width — let mermaid auto-fit work below the cap'
   );
   assert.ok(
     !/svg\.style\.maxWidth\s*=/.test(initBlock),
-    'init must not write svg.style.maxWidth either'
+    "init must NOT clear svg.style.maxWidth — mermaid's inline cap prevents bloat on wide screens"
   );
 }
 
-console.log('test: slider initial value is initialPct, not hardcoded 100');
+console.log('test: slider initial value reflects rendered/intrinsic ratio');
 {
+  // With clamped auto-fit, what's actually painted depends on the container,
+  // so the slider must re-read the rendered width and translate to a percentage.
+  const { getInitialPct } = new Function(
+    sliderJs + '\nreturn { getInitialPct };'
+  )();
+  assert.equal(typeof getInitialPct, 'function', 'getInitialPct helper must exist');
+  assert.equal(getInitialPct(2000, 1000), 50, 'half-compressed → 50%');
+  assert.equal(getInitialPct(800, 800), 100, 'no compression → 100%');
+  assert.equal(getInitialPct(0, 500), 100, 'guard against zero intrinsic');
+  assert.equal(getInitialPct(500, 0), 100, 'guard against zero rendered');
+  assert.equal(getInitialPct(10000, 100), 20, 'min slider clamp');
   assert.ok(
-    sliderJs.includes('slider.value = initialPct'),
-    'slider value should be set to initialPct (computed from rendered/intrinsic)'
-  );
-  assert.ok(
-    sliderJs.includes("label.textContent = initialPct + '%'"),
-    'label should reflect initialPct'
+    sliderJs.includes('slider.value = initialPct') ||
+      sliderJs.includes('slider.value=initialPct'),
+    'slider value should be set to computed initialPct'
   );
 }
 
-console.log('test: reset button restores auto-fit by clearing inline styles');
+console.log('test: reset clears inline width AND maxWidth so auto-fit (clamped by minWidth) returns');
 {
-  // Calling setSvgWidth(initialPct) would drift by rounding (25.5% rendered -> 25%
-  // slider -> 25% * intrinsic = ~99% of original). Clearing svg.style.width
-  // returns mermaid's exact original auto-fit, no drift.
-  assert.ok(
-    /\.svg-reset[^)]*\)\.addEventListener\([^,]+,\s*resetToInitial\)/.test(sliderJs)
-    || /\.svg-reset[^)]*\)\.addEventListener\([^,]+,\s*function/.test(sliderJs),
-    'reset button should be wired to a function (not a one-liner setSvgWidth)'
-  );
   assert.ok(
     sliderJs.includes("svg.style.width = ''"),
-    'reset must clear svg.style.width so mermaid auto-fit comes back exactly'
+    'reset must clear svg.style.width to drop slider override'
+  );
+  assert.ok(
+    sliderJs.includes("svg.style.maxWidth = ''"),
+    "reset must also clear svg.style.maxWidth so mermaid's inline cap takes effect again"
   );
   assert.ok(
     !sliderJs.includes('setSvgWidth(100)'),
-    'reset must not call setSvgWidth(100) — that locks to natural size, not initial'
+    'reset must NOT call setSvgWidth(100) — that locks to intrinsic, not auto-fit'
+  );
+}
+
+console.log('test: ui.css does NOT force max-width:none on mermaid SVG (preserves mermaid cap)');
+{
+  // mermaid sets style="max-width: <intrinsic>px" inline. We must let that through
+  // so SVGs don't bloat past intrinsic on wide screens; slider override is per-zoom.
+  assert.ok(
+    !/pre\.mermaid\s+svg\s*\{[^}]*max-width:\s*none/.test(uiCss),
+    'ui.css should not contain "pre.mermaid svg { max-width: none }" — keeps mermaid intrinsic cap'
   );
 }
 

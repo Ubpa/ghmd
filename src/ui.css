@@ -114,7 +114,6 @@ html[data-theme="dark"]  kbd { color: #c9d1d9; background: #161b22; border: 1px 
 
 .math-block { text-align: center; margin: 16px 0; overflow-x: auto; }
 pre.mermaid { background: transparent; border: none; text-align: center; overflow-x: auto; }
-pre.mermaid svg { max-width: none; }
 
 /* Per-SVG width slider */
 .mermaid-wrap { position: relative; }

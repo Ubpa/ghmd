@@ -1,12 +1,18 @@
 // Per-mermaid-SVG width slider (inlined into both server and VS Code extension).
 //
-// 100% on the slider == the SVG's intrinsic width from viewBox (natural readable
-// size). Mermaid renders large diagrams with width="100%" inside max-width, which
-// shrinks them to fit the container; we leave that initial auto-fit alone (the
-// diagram displays fully on first paint), but the slider's starting position
-// reflects the current ratio so its label matches the visual. From there, the
-// user can zoom up to 100% (natural) or down further, and reset returns to the
-// auto-fit starting position.
+// Default behavior: clamped auto-fit. Mermaid renders SVGs with width="100%"
+// and inline max-width=intrinsic, which means the diagram shrinks to fit its
+// container. We add a min-width = baseWidth * MIN_RATIO so the diagram cannot
+// shrink below that fraction of intrinsic — heavy compression (e.g. wide gantt
+// in a narrow pane) hits the floor and overflows into horizontal scroll, while
+// modestly-sized flowcharts still fit naturally inside narrower panes.
+//
+// 100% on the slider == intrinsic viewBox width (natural readable size).
+// Slider initial reflects the actually-rendered ratio so its label matches
+// what the user sees. Reset clears slider overrides and returns to clamped
+// auto-fit.
+
+const MIN_RATIO = 0.5;
 
 function clampPct(pct) {
   return Math.max(20, Math.min(300, pct));
@@ -35,6 +41,12 @@ function addSvgSliders(root) {
     if (!svg.getAttribute('viewBox')) return;
     const baseWidth = getSvgBaseWidth(svg);
     if (!baseWidth) return;
+
+    // Floor: SVG can't shrink below MIN_RATIO of intrinsic. Below that it
+    // overflows the container and the user gets horizontal scroll instead of
+    // an illegibly-squished diagram.
+    svg.style.minWidth = (baseWidth * MIN_RATIO) + 'px';
+
     const initialPct = getInitialPct(baseWidth, svg.getBoundingClientRect().width);
 
     const wrap = document.createElement('div');
@@ -81,12 +93,12 @@ function addSvgSliders(root) {
       if (Math.abs(dy) > 1) window.scrollBy(0, dy);
     }
     function resetToInitial() {
-      // Clear inline width/maxWidth so mermaid's original auto-fit comes back
-      // exactly (avoids rounding drift from initialPct * baseWidth).
+      // Drop slider overrides so mermaid's auto-fit (clamped by minWidth) returns.
       svg.style.width = '';
       svg.style.maxWidth = '';
-      slider.value = initialPct;
-      label.textContent = initialPct + '%';
+      const restoredPct = getInitialPct(baseWidth, svg.getBoundingClientRect().width);
+      slider.value = restoredPct;
+      label.textContent = restoredPct + '%';
     }
     slider.addEventListener('input', () => setSvgWidth(parseInt(slider.value)));
     bar.querySelector('.svg-minus').addEventListener('click', () => setSvgWidth(parseInt(slider.value) - 10));
