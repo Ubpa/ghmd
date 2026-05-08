@@ -1,9 +1,6 @@
 import yaml from 'js-yaml';
 import { Marked, type TokenizerAndRendererExtension, type Tokens } from 'marked';
-
-function escHtml(s: string): string {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
+import { escHtml } from './escape.js';
 
 const inlineMarked = new Marked({
   tokenizer: {

@@ -3,21 +3,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
-import { Marked } from 'marked';
-import markedAlert from 'marked-alert';
-import markedFootnote from 'marked-footnote';
-import { createFrontmatterExtension } from './frontmatter.js';
-import { createMathExtensions } from './math.js';
-import { sourceLines, applySourceLineWrappers } from './source-lines.js';
-import { createHeadingRenderer } from './heading.js';
-import { markedHighlight } from 'marked-highlight';
-import { markedEmoji } from 'marked-emoji';
-import markedLinkifyIt from 'marked-linkify-it';
-import hljs from 'highlight.js';
-import { gemoji } from 'gemoji';
-
-const emojiMap: Record<string, string> = {};
-gemoji.forEach(e => e.names.forEach(n => { emojiMap[n] = e.emoji; }));
+import { createMarked } from './render.js';
 
 const __dir = path.resolve(import.meta.dirname, '..');
 
@@ -37,42 +23,6 @@ if (!file) {
 }
 const port = parseInt(process.argv[3] || '6419');
 const absFile = path.resolve(file);
-
-function escHtml(s: string): string {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-const marked = new Marked();
-marked.use({ extensions: [createFrontmatterExtension(), ...createMathExtensions()] });
-marked.use(markedAlert());
-marked.use(markedFootnote());
-marked.use(markedHighlight({
-  langPrefix: 'hljs language-',
-  highlight(code, lang) {
-    if (lang && hljs.getLanguage(lang)) return hljs.highlight(code, { language: lang }).value;
-    return code;
-  }
-}));
-marked.use(markedEmoji({ emojis: emojiMap }));
-marked.use(markedLinkifyIt());
-marked.use(createHeadingRenderer());
-marked.use({
-  renderer: {
-    code({ text, lang }) {
-      if (lang === 'mermaid') return `<pre class="mermaid">${escHtml(text)}</pre>`;
-      if (lang === 'math') return `<div class="math-block">$$${escHtml(text)}$$</div>`;
-      if (lang === 'diff') {
-        const lines = text.split('\n').map(line => {
-          if (line.startsWith('+')) return `<span class="diff-add">${escHtml(line)}</span>`;
-          if (line.startsWith('-')) return `<span class="diff-del">${escHtml(line)}</span>`;
-          return `<span>${escHtml(line)}</span>`;
-        }).join('\n');
-        return `<pre><code class="language-diff">${lines}</code></pre>`;
-      }
-      return false;
-    }
-  }
-});
 
 const uiCss  = fs.readFileSync(path.join(__dir, 'src', 'ui.css'), 'utf8');
 const tocJs  = fs.readFileSync(path.join(__dir, 'src', 'toc.js'), 'utf8');
@@ -119,16 +69,12 @@ function mermaidBlock(): string {
 let lastMtime = 0;
 let cachedBody = '';
 
-applySourceLineWrappers(marked);
-
 function render(): void {
   const mtime = fs.statSync(absFile).mtimeMs;
   if (mtime === lastMtime) return;
   lastMtime = mtime;
   const md = fs.readFileSync(absFile, 'utf8');
-  marked.use({ extensions: [createFrontmatterExtension()] });
-  marked.use(sourceLines(md));
-  cachedBody = marked.parse(md) as string;
+  cachedBody = createMarked(md).parse(md) as string;
   console.log(`[${new Date().toLocaleTimeString()}] rendered ${path.basename(absFile)}`);
 }
 

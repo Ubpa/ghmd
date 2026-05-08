@@ -1,12 +1,9 @@
 import type { TokenizerAndRendererExtension, Tokens } from 'marked';
+import { escHtml } from './escape.js';
 
 // Intercept $$...$$ and $...$ at tokenization time so the LaTeX content never goes
 // through marked's inline parser — otherwise `<T>` becomes a real HTML element,
 // `\_` collapses to `_`, and KaTeX can't find matching delimiters in the DOM.
-
-function escHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
 
 const blockRe = /^\$\$([\s\S]+?)\$\$(?:\n|$)/;
 const inlineRe = /^\$(?!\s)((?:\\\$|[^$\n])+?)(?<!\s)\$(?!\d)/;
