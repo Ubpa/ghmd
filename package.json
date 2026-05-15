@@ -1,13 +1,32 @@
 {
-  "name": "ghmd",
+  "name": "@xubpa/ghmd",
   "displayName": "GHMD — GitHub Markdown Preview",
   "description": "GitHub-style Markdown preview: standalone server + VS Code extension",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "type": "module",
   "publisher": "ubpa",
-  "bin": {
-    "ghmd": "./dist/serve.mjs"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ubpa/ghmd.git"
   },
+  "homepage": "https://github.com/Ubpa/ghmd#readme",
+  "bin": {
+    "ghmd": "dist/serve.mjs"
+  },
+  "exports": {
+    "./serve.mjs": "./dist/serve.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/serve.mjs",
+    "src/ui.css",
+    "src/toc.js",
+    "src/scroll-sync.js",
+    "src/svg-slider.js",
+    "README.md",
+    "LICENSE"
+  ],
   "engines": {
     "vscode": "^1.85.0"
   },

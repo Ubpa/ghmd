@@ -2,7 +2,7 @@
 
 **Pixel-perfect GitHub rendering, locally.** Works as a standalone server (browser) and a VS Code extension.
 
-![Version](https://img.shields.io/badge/version-0.1.1-blue) ![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen?logo=node.js) ![License](https://img.shields.io/badge/license-MIT-green) ![Size](https://img.shields.io/badge/vsix-~420KB-blue)
+![Version](https://img.shields.io/badge/version-0.2.0-blue) ![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen?logo=node.js) ![License](https://img.shields.io/badge/license-MIT-green) ![Size](https://img.shields.io/badge/vsix-~420KB-blue)
 
 ---
 
@@ -62,6 +62,24 @@ node serve.mjs docs/guide.md 8080     # custom port
 ```
 
 Auto-reloads in browser on file change. KaTeX and Mermaid load from CDN.
+
+#### Root mode (multi-file)
+
+Serve any markdown file under a directory and switch via `?file=`:
+
+```bash
+node serve.mjs --root ./docs --port 6419
+# http://127.0.0.1:6419/                  → renders ./docs/README.md (if any)
+# http://127.0.0.1:6419/?file=guide.md    → renders ./docs/guide.md
+# http://127.0.0.1:6419/?file=sub/x.md    → renders ./docs/sub/x.md
+```
+
+`--port 0` lets the OS pick a free port. ghmd prints
+`LISTENING http://127.0.0.1:<port>` on the first stdout line so a parent
+process spawning ghmd can pick up the chosen port.
+
+Path is constrained to `<root>` — `..` escapes return 400, non-markdown
+files return 400, missing files return 404.
 
 <details>
 <summary>Offline mode</summary>
