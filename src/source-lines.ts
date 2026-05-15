@@ -4,7 +4,7 @@ const BLOCK_TYPES = ['heading', 'paragraph', 'code', 'table', 'blockquote', 'lis
 
 type SourceLineToken = Token & { _line?: number };
 
-export function sourceLines(markdown: string): MarkedExtension {
+export function sourceLines(markdown: string, lineMap?: number[]): MarkedExtension {
   const offsets = [0];
   for (let i = 0; i < markdown.length; i++) {
     if (markdown[i] === '\n') offsets.push(i + 1);
@@ -24,7 +24,11 @@ export function sourceLines(markdown: string): MarkedExtension {
     walkTokens(token: Token) {
       if (!(BLOCK_TYPES as readonly string[]).includes(token.type)) return;
       const idx = markdown.indexOf(token.raw, cursor);
-      if (idx >= 0) { (token as SourceLineToken)._line = charToLine(idx); cursor = idx; }
+      if (idx >= 0) {
+        const line = charToLine(idx);
+        (token as SourceLineToken)._line = lineMap ? (lineMap[line - 1] ?? line) : line;
+        cursor = idx;
+      }
     }
   };
 }
