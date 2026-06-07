@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run GHMD Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/.vsix-build"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/.vsix-build/dist/**/*.cjs"
+      ],
+      "preLaunchTask": "stage-vscode-dev"
+    }
+  ]
+}
