@@ -2,6 +2,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
+import { fileURLToPath } from 'url';
 import { createMarked } from './render.js';
 import type { AddressInfo } from 'net';
 
@@ -65,11 +66,13 @@ const tocJs  = fs.readFileSync(path.join(__dir, 'src', 'toc.js'), 'utf8');
 const scrollSyncJs = fs.readFileSync(path.join(__dir, 'src', 'scroll-sync.js'), 'utf8');
 const svgSliderJs = fs.readFileSync(path.join(__dir, 'src', 'svg-slider.js'), 'utf8');
 
-const cssDir = path.dirname(new URL(import.meta.resolve('github-markdown-css')).pathname);
+// fileURLToPath, not URL.pathname: on Windows .pathname yields "/C:/…" which
+// path.join turns into a bogus "C:\C:\…" double-drive path.
+const cssDir = path.dirname(fileURLToPath(import.meta.resolve('github-markdown-css')));
 const ghLightCss = fs.readFileSync(path.join(cssDir, 'github-markdown-light.css'), 'utf8');
 const ghDarkCss  = fs.readFileSync(path.join(cssDir, 'github-markdown-dark.css'), 'utf8');
 
-const hljsDir = path.join(path.dirname(new URL(import.meta.resolve('highlight.js')).pathname), '..', 'styles');
+const hljsDir = path.join(path.dirname(fileURLToPath(import.meta.resolve('highlight.js'))), '..', 'styles');
 const hljsLightCss = fs.readFileSync(path.join(hljsDir, 'github.css'), 'utf8');
 const hljsDarkCss  = fs.readFileSync(path.join(hljsDir, 'github-dark.css'), 'utf8');
 
